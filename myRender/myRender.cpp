@@ -13,8 +13,8 @@ using std::endl;
 using std::abs;
 using std::swap;
 
-const int WINDOW_WIDTH = 800;
-const int WINDOW_HEIGHT = 800;
+const int WINDOW_WIDTH = 1000;
+const int WINDOW_HEIGHT = 1000;
 
 //void DrawLine(int x0, int y0, int x1, int y1, Canvas& canvas, SDL_Color color);
 
@@ -85,23 +85,24 @@ int main(int argc, char* argv[])
 		// canvas setpixel draw sth
 		SDL_Color color;
 
-		DrawLine(10, 20, 200, 400, *canvas, color);
+		//DrawLine(10, 20, 200, 400, *canvas, color);
 
 		Vec2i t0[3] = { Vec2i(10, 70),   Vec2i(50, 160),  Vec2i(70, 80) };
 		Vec2i t1[3] = { Vec2i(180, 50),  Vec2i(150, 1),   Vec2i(70, 180) };
 		Vec2i t2[3] = { Vec2i(180, 150), Vec2i(120, 160), Vec2i(130, 180) };
-		DrawTriangle(t0, *canvas, color);
+		//DrawTriangle(t0, *canvas, color);
 		for (int i = 0; i < model->nfaces(); i++) {
 			color.r = 255;
 			color.g = 255;
 			color.b = 255;
 			color.a = 255;
 			std::vector<int> face = model->face(i);
-			Vec2f screencoords[3];
+			Vec3f screencoords[3];
 			Vec3f worldcoords[3];
 			for (int j = 0; j < 3; j++) {
 				worldcoords[j] = model->vert(face[j]);
-				screencoords[j] = Vec2f((worldcoords[j].x + 1)*WINDOW_WIDTH/2, WINDOW_HEIGHT - (worldcoords[j].y + 1)*WINDOW_HEIGHT/2);
+				//ÆÁÄ»×ø±ê×ªÎªint£¿£¿
+				screencoords[j] = Vec3f(int((worldcoords[j].x + 1)*WINDOW_WIDTH/2), int(WINDOW_HEIGHT - (worldcoords[j].y + 1)*WINDOW_HEIGHT/2), worldcoords[j].z);
 			}
 
 			Vec3f n = (worldcoords[2] - worldcoords[0]) ^ (worldcoords[1] - worldcoords[0]);
@@ -113,8 +114,8 @@ int main(int argc, char* argv[])
 			color.g *= intensity;
 			color.b *= intensity;
 			if (intensity > 0) {
-				//DrawTriangle(screencoords, zbuffer, *canvas, color);
-				DrawTriangle(screencoords[0], screencoords[1], screencoords[2], *canvas, color);
+				DrawTriangle(screencoords, zbuffer, *canvas, color);
+				//DrawTriangle(screencoords[0], screencoords[1], screencoords[2], *canvas, color);
 			}	
 			
 		}
