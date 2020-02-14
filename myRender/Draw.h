@@ -9,7 +9,7 @@ using std::swap;
 using std::abs;
 using std::min;
 using std::max;
-
+using std::equal;
 void DrawLine(int x0, int y0, int x1, int y1, Canvas& canvas, const SDL_Color& color) {
 	//for (float t = 0.; t < 1.; t += .01) {
 	//	int x = x0 + (x1 - x0) * t;
@@ -49,7 +49,7 @@ void DrawLine(int x0, int y0, int x1, int y1, Canvas& canvas, const SDL_Color& c
 	}
 }
 
-void DrawTriangle(Vec2i t0, Vec2i t1, Vec2i t2, Canvas& canvas, const SDL_Color& color) {
+void DrawTriangle(Vec2f t0, Vec2f t1, Vec2f t2, Canvas& canvas, const SDL_Color& color) {
 
 	if (t0.y == t1.y && t1.y == t2.y) return;
 	//t.y排序
@@ -64,8 +64,8 @@ void DrawTriangle(Vec2i t0, Vec2i t1, Vec2i t2, Canvas& canvas, const SDL_Color&
 	}
 
 	//下三角形
-	int t0t2_y = t2.y - t0.y;
-	int t0t1_y = t1.y - t0.y + 1; //避免除以0
+	float t0t2_y = t2.y - t0.y;
+	float t0t1_y = t1.y - t0.y + 1e-3; //避免除以0
 	for (int y = t0.y; y <= t1.y; y++) {
 		float t0t2_t = (y - t0.y) / (float)t0t2_y;
 		float t0t1_t = (y - t0.y) / (float)t0t1_y;
@@ -78,8 +78,8 @@ void DrawTriangle(Vec2i t0, Vec2i t1, Vec2i t2, Canvas& canvas, const SDL_Color&
 		//DrawLine(t0t2Bound_x, y, t0t1Bound_x, y, canvas, color);
 	}
 	//上三角形
-	int t1t2_y = t2.y - t1.y + 1;
-	for (int y = t2.y; y > t1.y; y--) {
+	float t1t2_y = t2.y - t1.y + 1e-3;
+	for (int y = t2.y; y >= t1.y; y--) {
 		float t0t2_t = (t2.y - y) / (float)t0t2_y;
 		float t0t1_t = (t2.y - y) / (float)t1t2_y;
 		int t0t2Bound_x = t2.x + (t0.x - t2.x) * t0t2_t;
@@ -107,6 +107,15 @@ Vec3f BaryCentric(Vec2i* triangle, Vec2i p) {
 	return Vec3f(1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z);
 }
 
+Vec3f BaryCentric(Vec3f* triangle, Vec3f p) {
+	Vec3f u = cross(Vec3f(triangle[1].x - triangle[0].x, triangle[2].x - triangle[0].x, triangle[0].x - p.x),
+		Vec3f(triangle[1].y - triangle[0].y, triangle[2].y - triangle[0].y, triangle[0].y - p.y));
+
+	if (abs(u.z) <= 1e-4) return Vec3f(-1, 1, 1);
+	return Vec3f(1.f - (u.x + u.y) / u.z, u.x / u.z, u.y / u.z);
+}
+
+
 /*
 叉乘法
 t1 = PA^PB,
@@ -125,7 +134,17 @@ bool IsPointInTriangle(Vec2i* triangle, Vec2i p) {
 	return t1 * t2 >= 0 && t2 * t3 >= 0;
 }
 
+bool IsPointInTriangle(Vec3f* triangle, Vec3f p) {
+	Vec2f pa = Vec2f(triangle[0].x, triangle[0].y) - Vec2f(p.x, p.y);
+	Vec2f pb = Vec2f(triangle[1].x, triangle[1].y) - Vec2f(p.x, p.y);
+	Vec2f pc = Vec2f(triangle[2].x, triangle[2].y) - Vec2f(p.x, p.y);
 
+	int t1 = cross(pa, pb);
+	int t2 = cross(pb, pc);
+	int t3 = cross(pc, pa);
+
+	return t1 * t2 >= 0 && t2 * t3 >= 0;
+}
 void DrawTriangle(Vec2i* triangle, Canvas& canvas, const SDL_Color& color) {
 	//三角形法 判断点是否在三角形内
 	//首先找到包围三角形的矩形
@@ -146,10 +165,57 @@ void DrawTriangle(Vec2i* triangle, Canvas& canvas, const SDL_Color& color) {
 			//if (bc_screen.x < 0 || bc_screen.y < 0 || bc_screen.z < 0) continue; 
 			//canvas.SetPixel(color, p.x, p.y);
 
+			if (IsPointInTriangle(triangle, p)) {
+				canvas.SetPixel(color, p.x, p.y);
+			}
+		}
+	}
+}
+
+void DrawTriangle(Vec3f* triangle, float* zbuffer, Canvas& canvas, const SDL_Color& color) {
+	//三角形法 判断点是否在三角形内
+	//首先找到包围三角形的矩形
+	//Vec2f bboxmin(canvas.width - 1, canvas.height - 1);
+	//Vec2f bboxmax(0, 0);
+	Vec2f bboxmin(std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
+	Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
+	Vec2f clamp = Vec2f(canvas.width - 1, canvas.height - 1);
+	for (int i = 0; i < 3; i++) {
+		bboxmax.x = min(clamp.x, max(bboxmax.x, triangle[i].x));
+		bboxmax.y = min(clamp.y, max(bboxmax.y, triangle[i].y));
+		bboxmin.x = max(0.f, min(bboxmin.x, triangle[i].x));
+		bboxmin.y = max(0.f, min(bboxmin.y, triangle[i].y));
+	}
+
+	Vec3f p;
+	for (p.x = bboxmin.x; p.x <= bboxmax.x; p.x++) {
+		for (p.y = bboxmin.y; p.y <= bboxmax.y; p.y++) {
+			//Vec3f bc_screen = BaryCentric(triangle, p);
+			//if (bc_screen.x < 0 || bc_screen.y < 0 || bc_screen.z < 0) continue; 
+			//canvas.SetPixel(color, p.x, p.y);
+
 			//if (IsPointInTriangle(triangle, p)) {
 			//	canvas.SetPixel(color, p.x, p.y);
 			//}
+
+			//Vec3f bc_screen = BaryCentric(triangle, p);
+			//const float error = -0.1f;
+			//if (bc_screen.x < error || bc_screen.y < error || bc_screen.z < error) continue;
+			//p.z = 0;
+			////for (int i = 0; i < 3; i++) {
+			//	p.z += bc_screen.x * triangle[0].z;
+			//	p.z += bc_screen.y * triangle[1].z;
+			//	p.z += bc_screen.z * triangle[2].z;
+			//}
+
+			if (IsPointInTriangle(triangle, p)) {
+				canvas.SetPixel(color, p.x, p.y);
+			}
+			//if (zbuffer[int(p.x + p.y * canvas.width)] < p.z) {
+			//	zbuffer[int(p.x + p.y * canvas.width)] = p.z;
+			 	//canvas.SetPixel(color, int(p.x), (int)p.y);
+			//}
+
 		}
 	}
-
 }
