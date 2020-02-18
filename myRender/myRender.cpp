@@ -13,9 +13,36 @@ using std::endl;
 using std::abs;
 using std::swap;
 
-const int WINDOW_WIDTH = 1000;
-const int WINDOW_HEIGHT = 1000;
+const int WINDOW_WIDTH = 800;
+const int WINDOW_HEIGHT = 800;
+const int depth = 2;
+Vec3f camera(0, 0, 3);
 
+
+Matrix viewport(int x, int y, int w, int h) {
+	Matrix m = Matrix::identity();
+	m[0][3] = x + w / 2.f;
+	m[1][3] = y + h / 2.f;
+	//m[2][3] = depth / 2.f;
+
+	m[0][0] = w / 2.f;
+	m[1][1] = h / 2.f;
+	//m[2][2] = depth / 2.f;
+	return m;
+}
+
+mat<4, 1, float> v2m(Vec3f v) {
+	mat<4,1,float> m;
+	m[0][0] = v.x;
+	m[1][0] = v.y;
+	m[2][0] = v.z;
+	m[3][0] = 1.f;
+	return m;
+}
+
+Vec3f m2v(mat<4, 1, float> m) {
+	return Vec3f(int(m[0][0] / m[3][0]), int(m[1][0] / m[3][0]), int(m[2][0] / m[3][0]));
+}
 //void DrawLine(int x0, int y0, int x1, int y1, Canvas& canvas, SDL_Color color);
 
 int main(int argc, char* argv[])
@@ -25,7 +52,6 @@ int main(int argc, char* argv[])
 		cout << "Error initializing SDL: " << SDL_GetError() << endl;
 		return 1;
 	}
-
 
 	SDL_Window* window = SDL_CreateWindow("MyRender", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 
 										  WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
@@ -73,7 +99,10 @@ int main(int argc, char* argv[])
 
 	Vec3f light_dir(0, 0, -1);
 
-
+	Matrix projection = Matrix::identity();
+	//视口转换
+	Matrix view = viewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+	projection[3][2] = -1.f / camera.z;
 	//RenderingLoop
 	bool quit = true;
 	while (quit) {
@@ -100,8 +129,10 @@ int main(int argc, char* argv[])
 			Vec2i uvs[3];
 			for (int j = 0; j < 3; j++) {
 				worldcoords[j] = model->vert(face[j][0]);
+				screencoords[j] = m2v(view * (projection * v2m(worldcoords[j])));
+				
 				//屏幕坐标转为int？？
-				screencoords[j] = Vec3f(int((worldcoords[j].x + 1)*WINDOW_WIDTH/2 +.5), int(WINDOW_HEIGHT - (worldcoords[j].y + 1)*WINDOW_HEIGHT/2 - .5), worldcoords[j].z);
+				//screencoords[j] = Vec3f(int((worldcoords[j].x + 1)*WINDOW_WIDTH/2 +.5), int(WINDOW_HEIGHT - (worldcoords[j].y + 1)*WINDOW_HEIGHT/2 - .5), worldcoords[j].z);
 			}
 
 			Vec3f n = cross((worldcoords[2] - worldcoords[0]), (worldcoords[1] - worldcoords[0]));

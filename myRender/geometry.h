@@ -215,6 +215,8 @@ template <size_t DimRows, size_t DimCols, class T> std::ostream& operator<<(std:
 template <typename T> T cross(vec<2, T> v1, vec<2, T> v2) {
 	return v1.x * v2.y - v1.y * v2.x;
 }
+
+
 /////////////////////////////////////////////////////////////////////////////////
 
 typedef vec<2, float> Vec2f;
@@ -223,5 +225,8 @@ typedef vec<3, float> Vec3f;
 typedef vec<3, int>   Vec3i;
 typedef vec<4, float> Vec4f;
 typedef mat<4, 4, float> Matrix;
+
+
+
 #endif //__GEOMETRY_H__
 
