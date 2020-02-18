@@ -10,7 +10,8 @@ using std::abs;
 using std::min;
 using std::max;
 using std::equal;
-void DrawLine(int x0, int y0, int x1, int y1, Canvas& canvas, const SDL_Color& color) {
+
+void DrawLine(int x0, int y0, int x1, int y1, Canvas& canvas, const TGAColor& color) {
 	//for (float t = 0.; t < 1.; t += .01) {
 	//	int x = x0 + (x1 - x0) * t;
 	//	int y = y0 + (y1 - y0) * t;
@@ -49,17 +50,20 @@ void DrawLine(int x0, int y0, int x1, int y1, Canvas& canvas, const SDL_Color& c
 	}
 }
 
-void DrawTriangle(Vec2f t0, Vec2f t1, Vec2f t2, Canvas& canvas, const SDL_Color& color) {
+void DrawTriangle(Vec3f t0, Vec3f t1, Vec3f t2, Vec2i* uv, float* zbuffer, Canvas& canvas, TGAImage& img) {
 
 	if (abs(t0.y-t1.y) < 0.001f && abs(t1.y-t2.y) < 0.001f) return;
 	//t.y排序
 	if (t0.y > t1.y) {
 		swap(t0, t1);
+		swap(uv[0], uv[1]);
 	}
 	if (t1.y > t2.y) {
 		swap(t1, t2);
+		swap(uv[1], uv[2]);
 		if (t0.y > t1.y) {
 			swap(t0, t1);
+			swap(uv[0], uv[1]);
 		}
 	}
 
@@ -69,11 +73,33 @@ void DrawTriangle(Vec2f t0, Vec2f t1, Vec2f t2, Canvas& canvas, const SDL_Color&
 	for (float y = t0.y; y <= t1.y; y++) {
 		float t0t2_t = (y - t0.y) / (float)t0t2_y;
 		float t0t1_t = (y - t0.y) / (float)t0t1_y;
+		
 		float t0t2Bound_x = t0.x + (t2.x - t0.x) * t0t2_t;
 		float t0t1Bound_x = t0.x + (t1.x - t0.x) * t0t1_t;
-		if (t0t2Bound_x > t0t1Bound_x) swap(t0t2Bound_x, t0t1Bound_x);
+
+		float t0t2Bound_z = t2.z + (t0.z - t2.z) * t0t2_t;
+		float t0t1Bound_z = t2.z + (t1.z - t2.z) * t0t1_t;
+
+		Vec2i t0t2_uv = uv[0] + (uv[2] - uv[0]) * t0t2_t;
+		Vec2i t0t1_uv = uv[0] + (uv[1] - uv[0]) * t0t1_t;
+
+		//float z = (1 - t0t1_t - t0t2_t) * t0.z + t0t1_t * t1.z + t0t2_t * t2.z;
+		if (t0t2Bound_x > t0t1Bound_x) {
+			swap(t0t2Bound_x, t0t1Bound_x);
+			swap(t0t2Bound_z, t0t1Bound_z);
+			swap(t0t2_uv, t0t1_uv);
+		}
 		for (float x = t0t2Bound_x; x <= t0t1Bound_x; x++) {
-			canvas.SetPixel(color, x, y);
+			int idx = x + y * canvas.width;
+			float delta = (x - t0t2Bound_x) / (t0t1Bound_x - t0t2Bound_x);
+			float z = t0t2Bound_z + delta * (t0t1Bound_z - t0t2Bound_z);
+			Vec2i uv = t0t2_uv +  (t0t1_uv - t0t2_uv) * delta;
+
+			if (zbuffer[idx]< z) {
+				canvas.SetPixel(img.get(uv.x, uv.y), x, y);
+				zbuffer[idx] = z;
+			}
+			
 		}
 		//DrawLine(t0t2Bound_x, y, t0t1Bound_x, y, canvas, color);
 	}
@@ -84,10 +110,28 @@ void DrawTriangle(Vec2f t0, Vec2f t1, Vec2f t2, Canvas& canvas, const SDL_Color&
 		float t0t1_t = (t2.y - y) / (float)t1t2_y;
 		float t0t2Bound_x = t2.x + (t0.x - t2.x) * t0t2_t;
 		float t0t1Bound_x = t2.x + (t1.x - t2.x) * t0t1_t;
+		float t0t2Bound_z = t2.z + (t0.z - t2.z) * t0t2_t;
+		float t0t1Bound_z = t2.z + (t1.z - t2.z) * t0t1_t;
+
+		Vec2i t0t2_uv = uv[2] + (uv[0] - uv[2]) * t0t2_t;
+		Vec2i t0t1_uv = uv[2] + (uv[1] - uv[2]) * t0t1_t;
+
 		//DrawLine(t0t2Bound_x, y, t0t1Bound_x, y, canvas, color);
-		if (t0t2Bound_x > t0t1Bound_x) swap(t0t2Bound_x, t0t1Bound_x);
+		if (t0t2Bound_x > t0t1Bound_x) {
+			swap(t0t2Bound_x, t0t1Bound_x);
+			swap(t0t2Bound_z, t0t1Bound_z);
+			swap(t0t2_uv, t0t1_uv);
+
+		}
 		for (float x = t0t2Bound_x; x <= t0t1Bound_x; x++) {
-			canvas.SetPixel(color, x, y);
+			int idx = x + y * canvas.width;
+			float delta = (x - t0t2Bound_x) / (t0t1Bound_x - t0t2Bound_x);
+			float z = t0t2Bound_z + delta * (t0t1Bound_z - t0t2Bound_z);
+			Vec2i uv = t0t2_uv + (t0t1_uv - t0t2_uv) * delta;
+			if (zbuffer[idx] < z) {
+				canvas.SetPixel(img.get(uv.x, uv.y), x, y);
+				zbuffer[idx] = z;
+			}
 		}
 	}
 }
@@ -150,35 +194,9 @@ bool IsPointInTriangle(Vec3f* triangle, Vec3f p) {
 	float t3 = cross(pc, pa);
 
 	return t1 * t2 >= 0.f && t2 * t3 >= 0.f;
-}
-void DrawTriangle(Vec2i* triangle, Canvas& canvas, const SDL_Color& color) {
-	//三角形法 判断点是否在三角形内
-	//首先找到包围三角形的矩形
-	Vec2i bboxmin = Vec2i(canvas.width - 1, canvas.height - 1);
-	Vec2i bboxmax = Vec2i(0, 0);
-	Vec2i clamp = Vec2i(canvas.width - 1, canvas.height - 1);
-	for (int i = 0; i < 3; i++) {
-		bboxmax.x = min(clamp.x, max(bboxmax.x, triangle[i].x));
-		bboxmax.y = min(clamp.y, max(bboxmax.y, triangle[i].y));
-		bboxmin.x = max(0, min(bboxmin.x, triangle[i].x));
-		bboxmin.y = max(0, min(bboxmin.y, triangle[i].y));
-	}
+} 
 
-	Vec2i p;
-	for (p.x = bboxmin.x; p.x <= bboxmax.x; p.x++) {
-		for (p.y = bboxmin.y; p.y <= bboxmax.y; p.y++) {
-			//Vec3f bc_screen = BaryCentric(triangle, p);
-			//if (bc_screen.x < 0 || bc_screen.y < 0 || bc_screen.z < 0) continue; 
-			//canvas.SetPixel(color, p.x, p.y);
-
-			if (IsPointInTriangle(triangle, p)) {
-				canvas.SetPixel(color, p.x, p.y);
-			}
-		}
-	}
-}
-
-void DrawTriangle(Vec3f* triangle, float* zbuffer, Canvas& canvas, const SDL_Color& color) {
+void DrawTriangle(Vec3f* triangle, Vec2i* uvs, float* zbuffer, Canvas& canvas, TGAImage& img) {
 	//三角形法 判断点是否在三角形内
 	//首先找到包围三角形的矩形
 	//Vec2f bboxmin(canvas.width - 1, canvas.height - 1);
@@ -186,6 +204,7 @@ void DrawTriangle(Vec3f* triangle, float* zbuffer, Canvas& canvas, const SDL_Col
 	Vec2f bboxmin(std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
 	Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
 	Vec2f clamp = Vec2f(canvas.width - 1, canvas.height - 1);
+
 	for (int i = 0; i < 3; i++) {
 		bboxmax.x = min(clamp.x, max(bboxmax.x, triangle[i].x));
 		bboxmax.y = min(clamp.y, max(bboxmax.y, triangle[i].y));
@@ -205,7 +224,7 @@ void DrawTriangle(Vec3f* triangle, float* zbuffer, Canvas& canvas, const SDL_Col
 			//}
 
 			Vec3f bc_screen = BaryCentric(triangle, p);
-			const float error = -0.f;
+			const float error = 0.f;
 			if (bc_screen.x < error || bc_screen.y < error || bc_screen.z < error) continue;
 			p.z = 0;
 			//for (int i = 0; i < 3; i++) {
@@ -213,12 +232,18 @@ void DrawTriangle(Vec3f* triangle, float* zbuffer, Canvas& canvas, const SDL_Col
 				p.z += bc_screen.y * triangle[1].z;
 				p.z += bc_screen.z * triangle[2].z;
 			//}
-
+			
 			//if (IsPointInTriangle(triangle, p)) {
 			//	canvas.SetPixel(color, p.x, p.y);
 			//}
 			if (zbuffer[int(p.x + p.y * canvas.width)] < p.z) {
 				zbuffer[int(p.x + p.y * canvas.width)] = p.z;
+			
+				Vec2i uv;
+				for (int i = 0; i < 3; i++) {
+					uv =  uv + uvs[i] * bc_screen[i] ;
+				}
+				TGAColor color = img.get(uv.x, uv.y);
 			 	canvas.SetPixel(color, p.x, p.y);
 			}
 

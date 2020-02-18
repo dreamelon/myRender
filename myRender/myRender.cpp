@@ -66,6 +66,7 @@ int main(int argc, char* argv[])
 	Canvas* canvas = new Canvas(WINDOW_WIDTH, WINDOW_HEIGHT);
 	
 	Model* model = new Model("obj/african_head.obj");
+	TGAImage img = model->GetImage();
 
 	float* zbuffer = new float[WINDOW_WIDTH * WINDOW_HEIGHT];
 	for (int i = WINDOW_WIDTH * WINDOW_HEIGHT; i--; zbuffer[i] = -std::numeric_limits<float>::max());
@@ -83,8 +84,8 @@ int main(int argc, char* argv[])
 			}
 		}
 		// canvas setpixel draw sth
-		SDL_Color color;
-
+		TGAColor color(255, 255, 255, 255);
+		
 		//DrawLine(10, 20, 200, 400, *canvas, color);
 
 		Vec2i t0[3] = { Vec2i(10, 70),   Vec2i(50, 160),  Vec2i(70, 80) };
@@ -92,20 +93,18 @@ int main(int argc, char* argv[])
 		Vec2i t2[3] = { Vec2i(180, 150), Vec2i(120, 160), Vec2i(130, 180) };
 		//DrawTriangle(t0, *canvas, color);
 		for (int i = 0; i < model->nfaces(); i++) {
-			color.r = 255;
-			color.g = 255;
-			color.b = 255;
-			color.a = 255;
-			std::vector<int> face = model->face(i);
+			color = TGAColor(255, 255, 255, 255);
+			std::vector<Vec3i> face = model->face(i);
 			Vec3f screencoords[3];
 			Vec3f worldcoords[3];
+			Vec2i uvs[3];
 			for (int j = 0; j < 3; j++) {
-				worldcoords[j] = model->vert(face[j]);
+				worldcoords[j] = model->vert(face[j][0]);
 				//ÆÁÄ»×ø±ê×ªÎªint£¿£¿
-				screencoords[j] = Vec3f(int((worldcoords[j].x + 1)*WINDOW_WIDTH/2), int(WINDOW_HEIGHT - (worldcoords[j].y + 1)*WINDOW_HEIGHT/2), worldcoords[j].z);
+				screencoords[j] = Vec3f(int((worldcoords[j].x + 1)*WINDOW_WIDTH/2 +.5), int(WINDOW_HEIGHT - (worldcoords[j].y + 1)*WINDOW_HEIGHT/2 - .5), worldcoords[j].z);
 			}
 
-			Vec3f n = (worldcoords[2] - worldcoords[0]) ^ (worldcoords[1] - worldcoords[0]);
+			Vec3f n = cross((worldcoords[2] - worldcoords[0]), (worldcoords[1] - worldcoords[0]));
 			n.normalize();
 			float intensity = n * light_dir;
 			//std::cout << "intensity :" << intensity << std::endl;
@@ -114,8 +113,12 @@ int main(int argc, char* argv[])
 			color.g *= intensity;
 			color.b *= intensity;
 			if (intensity > 0) {
-				DrawTriangle(screencoords, zbuffer, *canvas, color);
-				//DrawTriangle(screencoords[0], screencoords[1], screencoords[2], *canvas, color);
+				for (int k = 0; k < 3; k++) {
+					uvs[k] = model->uv(i, k);
+				}
+		
+				DrawTriangle(screencoords, uvs, zbuffer, *canvas, img);
+				//DrawTriangle(screencoords[0], screencoords[1], screencoords[2], uvs, zbuffer, *canvas, img);
 			}	
 			
 		}

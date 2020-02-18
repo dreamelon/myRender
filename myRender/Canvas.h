@@ -1,7 +1,7 @@
 #pragma once
 
 #include <SDL.h>
-
+#include "tgaimage.h"
 class Canvas {
 	
 	SDL_Rect rect;
@@ -16,7 +16,7 @@ public: Canvas(int _w, int _h) : width(_w), height(_h) {
 	pixelData = new Uint32[width * height];
 }
 
-public: bool SetPixel(const SDL_Color& color, int x, int y) {
+public: bool SetPixel(const TGAColor& color, int x, int y) {
 	if (!pixelData || x < 0 || y < 0 || x >= width || y >= height) {
 		return false;
 	}
