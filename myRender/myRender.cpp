@@ -8,6 +8,7 @@
 #include "Canvas.h"
 #include "Model.h"
 #include "Draw.h"
+#include "Camera.h"
 using std::cout;
 using std::endl;
 using std::abs;
@@ -16,10 +17,20 @@ using std::swap;
 const int WINDOW_WIDTH = 800;
 const int WINDOW_HEIGHT = 800;
 const int depth = 2;
-Vec3f camera(0, 0, 3);
 
+Vec3f center(0, 0, 0);
+//Vec3f camera(0, 0, 3);
+Vec3f up(0, 1, 0);
+Vec3f light_dir(0, 0, -1);
 
-Matrix viewport(int x, int y, int w, int h) {
+/*
+width    0    0   0			 1	0	0	1   
+0     height  0   0    *     0  1	0	1		
+0        0    1   0			 0	0	1	0
+0        0	  0   1			 0	0	0	1
+*/
+
+Matrix ViewPort(int x, int y, int w, int h) {
 	Matrix m = Matrix::identity();
 	m[0][3] = x + w / 2.f;
 	m[1][3] = y + h / 2.f;
@@ -30,6 +41,8 @@ Matrix viewport(int x, int y, int w, int h) {
 	//m[2][2] = depth / 2.f;
 	return m;
 }
+
+
 
 mat<4, 1, float> v2m(Vec3f v) {
 	mat<4,1,float> m;
@@ -44,6 +57,14 @@ Vec3f m2v(mat<4, 1, float> m) {
 	return Vec3f(int(m[0][0] / m[3][0]), int(m[1][0] / m[3][0]), int(m[2][0] / m[3][0]));
 }
 //void DrawLine(int x0, int y0, int x1, int y1, Canvas& canvas, SDL_Color color);
+
+
+bool firstMouse = true;
+float c_lastX = WINDOW_WIDTH / 2.0f;
+float c_lastY = WINDOW_HEIGHT / 2.0f;
+
+
+Camera camera(Vec3f(0.f, 0.f, 5.f));
 
 int main(int argc, char* argv[])
 {
@@ -84,7 +105,6 @@ int main(int argc, char* argv[])
 	//if (!winSurface) {
 	//	cout << "Error getting surface: " << SDL_GetError() << endl;
 	//	return 1;
-
 	//}
 
 	SDL_Texture* renderTexture = SDL_CreateTexture(render, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING,
@@ -95,23 +115,62 @@ int main(int argc, char* argv[])
 	TGAImage img = model->GetImage();
 
 	float* zbuffer = new float[WINDOW_WIDTH * WINDOW_HEIGHT];
-	for (int i = WINDOW_WIDTH * WINDOW_HEIGHT; i--; zbuffer[i] = -std::numeric_limits<float>::max());
+	
 
-	Vec3f light_dir(0, 0, -1);
 
 	Matrix projection = Matrix::identity();
 	//视口转换
-	Matrix view = viewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-	projection[3][2] = -1.f / camera.z;
+	Matrix viewport = ViewPort(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+	projection[3][2] = -1.f / (camera.position.z - center.z);
+
+	
+	//Matrix model = Matrix::identity();
+
+	SDL_Event event;
+	bool isLeftMouseDown = false;
 	//RenderingLoop
 	bool quit = true;
 	while (quit) {
-		SDL_Event event;
+		memset(canvas->pixelData, 0, canvas->width * canvas ->height * sizeof(Uint32));
+		for (int i = WINDOW_WIDTH * WINDOW_HEIGHT; i--; zbuffer[i] = -std::numeric_limits<float>::max());
+
 		while (SDL_PollEvent(&event)) {
 			if (event.type == SDL_QUIT) {
 				quit = false;
 			}
+			//User presses a key
+			if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
+				isLeftMouseDown = true;
+				c_lastX = event.motion.x;
+				c_lastY = event.motion.y;
+				cout << "c_lastX : " << c_lastX << endl;
+				cout << "c_lasty : " << c_lastY << endl;
+			}
+			if (event.type == SDL_MOUSEBUTTONUP) {
+				isLeftMouseDown = false;
+			}
+			if (isLeftMouseDown && event.type == SDL_MOUSEMOTION )
+			{
+				//if (firstMouse) {
+				//	c_lastX = event.motion.x;
+				//	c_lastY = event.motion.y;
+				//	firstMouse = false;
+				//} 
+				float xoffset = (event.motion.x - c_lastX) / WINDOW_HEIGHT * 3;
+				float yoffset = (event.motion.y - c_lastY) / WINDOW_HEIGHT * 3;
+				cout << "x: " << xoffset << endl;
+				cout << "y: " << yoffset << endl;
+				motion_t motion;
+				motion.pan = Vec2f(xoffset, yoffset);
+				camera.UpdateCameraPan(motion);
+
+				c_lastX = event.motion.x;
+				c_lastY = event.motion.y;
+			}
+
 		}
+
+		Matrix view = camera.LookAt();
 		// canvas setpixel draw sth
 		TGAColor color(255, 255, 255, 255);
 		
@@ -129,8 +188,9 @@ int main(int argc, char* argv[])
 			Vec2i uvs[3];
 			for (int j = 0; j < 3; j++) {
 				worldcoords[j] = model->vert(face[j][0]);
-				screencoords[j] = m2v(view * (projection * v2m(worldcoords[j])));
-				
+ 
+				screencoords[j] = m2v(viewport * (projection * view * v2m(worldcoords[j])));
+				screencoords[j].y = WINDOW_HEIGHT - screencoords[j].y;
 				//屏幕坐标转为int？？
 				//screencoords[j] = Vec3f(int((worldcoords[j].x + 1)*WINDOW_WIDTH/2 +.5), int(WINDOW_HEIGHT - (worldcoords[j].y + 1)*WINDOW_HEIGHT/2 - .5), worldcoords[j].z);
 			}
@@ -153,7 +213,7 @@ int main(int argc, char* argv[])
 			}	
 			
 		}
-		SDL_SetRenderDrawColor(render, 0xFF, 0xFF, 0xFF, 0xFF);
+		//SDL_SetRenderDrawColor(render, 0xFF, 0xFF, 0xFF, 0xFF);
 		SDL_RenderClear(render);
 
 		void* pixels;
