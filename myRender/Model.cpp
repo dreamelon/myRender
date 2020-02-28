@@ -53,7 +53,14 @@ Model::Model(const char* filename) : verts_(), faces_() {
 	LoadTexture(filename, "_diffuse.tga", diffuseMap);
 }
 
-Model::~Model() {
+Vec2i Model::uv(int iface, int nvert) {
+	int idx = faces_[iface][nvert][1];
+	return Vec2i(uvs_[idx].x * diffuseMap.get_width(), uvs_[idx].y * diffuseMap.get_height());
+}
+
+Vec3f Model::norm(int iface, int nvert) {
+	int idx = faces_[iface][nvert][2];
+	return normals_[idx];
 }
 
 int Model::nverts() {

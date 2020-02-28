@@ -51,7 +51,7 @@ public:
 	}
 	Vec3f calculate_pan(Vec3f from_camera, motion_t motion) {
 		Vec3f forward = from_camera.normalize();
-		Vec3f right = cross(Vec3f(0,1,0), forward);
+		Vec3f right = cross(up, forward);
 		Vec3f up = cross(forward, right);
 
 		float distance = from_camera.norm();

@@ -15,20 +15,12 @@ private:
 	void LoadTexture(std::string filename, const char* suffix, TGAImage& image);
 public:
 	Model(const char* filename);
-	~Model();
+	~Model(){}
 	int nverts();
 	int nfaces();
 	Vec3f vert(int i);
 	std::vector<Vec3i> face(int idx);
-	Vec2i uv(int iface, int nvert) {
-		int idx = faces_[iface][nvert][1];
-		return Vec2i(uvs_[idx].x * diffuseMap.get_width(), uvs_[idx].y * diffuseMap.get_height());
-	}
-	TGAColor GetColor(int x, int y) {
-		return diffuseMap.get(x, y);
-	}
-
-	TGAImage GetImage() {
-		return diffuseMap;
-	}
+	Vec2i uv(int iface, int nvert);
+	Vec3f norm(int iface, int nvert);
+	TGAImage GetImage() {	return diffuseMap;	}
 };

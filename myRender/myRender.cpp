@@ -9,6 +9,7 @@
 #include "Model.h"
 #include "Draw.h"
 #include "Camera.h"
+#include <windows.h>
 using std::cout;
 using std::endl;
 using std::abs;
@@ -59,9 +60,32 @@ Vec3f m2v(mat<4, 1, float> m) {
 //void DrawLine(int x0, int y0, int x1, int y1, Canvas& canvas, SDL_Color color);
 
 
+/* misc platform functions */
+
+static double get_native_time(void) {
+	static double period = -1;
+	LARGE_INTEGER counter;
+	if (period < 0) {
+		LARGE_INTEGER frequency;
+		QueryPerformanceFrequency(&frequency);
+		period = 1 / (double)frequency.QuadPart;
+	}
+	QueryPerformanceCounter(&counter);
+	return counter.QuadPart * period;
+}
+
+float platform_get_time(void) {
+	static double initial = -1;
+	if (initial < 0) {
+		initial = get_native_time();
+	}
+	return (float)(get_native_time() - initial);
+}
+
+
 bool firstMouse = true;
-float c_lastX = WINDOW_WIDTH / 2.0f;
-float c_lastY = WINDOW_HEIGHT / 2.0f;
+float c_lastX;
+float c_lastY;
 
 
 Camera camera(Vec3f(0.f, 0.f, 5.f));
@@ -116,8 +140,6 @@ int main(int argc, char* argv[])
 
 	float* zbuffer = new float[WINDOW_WIDTH * WINDOW_HEIGHT];
 	
-
-
 	Matrix projection = Matrix::identity();
 	//视口转换
 	Matrix viewport = ViewPort(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -130,15 +152,26 @@ int main(int argc, char* argv[])
 	bool isLeftMouseDown = false;
 	//RenderingLoop
 	bool quit = true;
+
+	double lastTime = get_native_time();
+	int nFrames = 0;
+	int xFrames = 0;
+
+	Uint64 start, now;
+
 	while (quit) {
+
+		start = SDL_GetPerformanceCounter();
+
 		memset(canvas->pixelData, 0, canvas->width * canvas ->height * sizeof(Uint32));
-		for (int i = WINDOW_WIDTH * WINDOW_HEIGHT; i--; zbuffer[i] = -std::numeric_limits<float>::max());
+		
+		for (int i = WINDOW_WIDTH * WINDOW_HEIGHT; i--; zbuffer[i] = -FLT_MAX);
 
 		while (SDL_PollEvent(&event)) {
 			if (event.type == SDL_QUIT) {
 				quit = false;
 			}
-			//User presses a key
+
 			if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
 				isLeftMouseDown = true;
 				c_lastX = event.motion.x;
@@ -149,7 +182,7 @@ int main(int argc, char* argv[])
 			if (event.type == SDL_MOUSEBUTTONUP) {
 				isLeftMouseDown = false;
 			}
-			if (isLeftMouseDown && event.type == SDL_MOUSEMOTION )
+			if (event.button.button == SDL_BUTTON_LEFT && event.type == SDL_MOUSEMOTION )
 			{
 				//if (firstMouse) {
 				//	c_lastX = event.motion.x;
@@ -177,8 +210,6 @@ int main(int argc, char* argv[])
 		//DrawLine(10, 20, 200, 400, *canvas, color);
 
 		Vec2i t0[3] = { Vec2i(10, 70),   Vec2i(50, 160),  Vec2i(70, 80) };
-		Vec2i t1[3] = { Vec2i(180, 50),  Vec2i(150, 1),   Vec2i(70, 180) };
-		Vec2i t2[3] = { Vec2i(180, 150), Vec2i(120, 160), Vec2i(130, 180) };
 		//DrawTriangle(t0, *canvas, color);
 		for (int i = 0; i < model->nfaces(); i++) {
 			color = TGAColor(255, 255, 255, 255);
@@ -186,6 +217,8 @@ int main(int argc, char* argv[])
 			Vec3f screencoords[3];
 			Vec3f worldcoords[3];
 			Vec2i uvs[3];
+			//Vec3f normals[3];
+			float intensitys[3];
 			for (int j = 0; j < 3; j++) {
 				worldcoords[j] = model->vert(face[j][0]);
  
@@ -193,24 +226,24 @@ int main(int argc, char* argv[])
 				screencoords[j].y = WINDOW_HEIGHT - screencoords[j].y;
 				//屏幕坐标转为int？？
 				//screencoords[j] = Vec3f(int((worldcoords[j].x + 1)*WINDOW_WIDTH/2 +.5), int(WINDOW_HEIGHT - (worldcoords[j].y + 1)*WINDOW_HEIGHT/2 - .5), worldcoords[j].z);
-			}
-
-			Vec3f n = cross((worldcoords[2] - worldcoords[0]), (worldcoords[1] - worldcoords[0]));
-			n.normalize();
-			float intensity = n * light_dir;
-			//std::cout << "intensity :" << intensity << std::endl;
-			//color.a *= intensity;
-			color.r *= intensity;
-			color.g *= intensity;
-			color.b *= intensity;
-			if (intensity > 0) {
-				for (int k = 0; k < 3; k++) {
-					uvs[k] = model->uv(i, k);
-				}
-		
-				DrawTriangle(screencoords, uvs, zbuffer, *canvas, img);
-				//DrawTriangle(screencoords[0], screencoords[1], screencoords[2], uvs, zbuffer, *canvas, img);
+				
+				uvs[j] = model->uv(i, j);
+				//normals[j] = model->norm(i, j);		
+				intensitys[j] = model->norm(i, j) * light_dir;
 			}	
+
+			//Vec3f n = cross((worldcoords[2] - worldcoords[0]), (worldcoords[1] - worldcoords[0]));
+			//n.normalize();
+			//float intensity = n * light_dir;
+
+			//if (intensity > 0) {
+			//	for (int k = 0; k < 3; k++) {
+			//		uvs[k] = model->uv(i, k);
+			//	}
+		
+				DrawTriangle(screencoords, intensitys, uvs, zbuffer, *canvas, img);
+				//DrawTriangle(screencoords[0], screencoords[1], screencoords[2], uvs, zbuffer, *canvas, img);
+			//}	
 			
 		}
 		//SDL_SetRenderDrawColor(render, 0xFF, 0xFF, 0xFF, 0xFF);
@@ -226,6 +259,23 @@ int main(int argc, char* argv[])
 		SDL_RenderCopy(render, renderTexture, NULL, NULL);
 
 		SDL_RenderPresent(render);
+
+
+		double currentTime = get_native_time();
+		nFrames++;
+		if (currentTime - lastTime >= 1.0) { // If last prinf() was more than 1 sec ago
+		// printf and reset timer
+			printf("%f ms/frame\n", 1000.0 / double(nFrames));
+			printf("%d fps\n", nFrames);
+			nFrames = 0;
+			lastTime += 1.0;
+		}
+
+		now = SDL_GetPerformanceCounter();
+		//xFrames++;
+		//if (now - start >= 1.0) {
+		//printf("%f ms\n", (now - start) * 1000.0 / SDL_GetPerformanceFrequency());
+		//}
 
 	}
 

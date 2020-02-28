@@ -196,7 +196,7 @@ bool IsPointInTriangle(Vec3f* triangle, Vec3f p) {
 	return t1 * t2 >= 0.f && t2 * t3 >= 0.f;
 } 
 
-void DrawTriangle(Vec3f* triangle, Vec2i* uvs, float* zbuffer, Canvas& canvas, TGAImage& img) {
+void DrawTriangle(Vec3f* triangle, float* intensitys, Vec2i* uvs, float* zbuffer, Canvas& canvas, TGAImage& img) {
 	//三角形法 判断点是否在三角形内
 	//首先找到包围三角形的矩形
 	//Vec2f bboxmin(canvas.width - 1, canvas.height - 1);
@@ -240,11 +240,17 @@ void DrawTriangle(Vec3f* triangle, Vec2i* uvs, float* zbuffer, Canvas& canvas, T
 				zbuffer[int(p.x + p.y * canvas.width)] = p.z;
 			
 				Vec2i uv;
+				Vec3f normal;
+				float intensity = 0.f;
 				for (int i = 0; i < 3; i++) {
 					uv =  uv + uvs[i] * bc_screen[i] ;
+					intensity = intensity + intensitys[i] * bc_screen[i];
 				}
-				TGAColor color = img.get(uv.x, uv.y);
-			 	canvas.SetPixel(color, p.x, p.y);
+				//if (intensity > 0) {
+					TGAColor color = img.get(uv.x, uv.y);
+					canvas.SetPixel(color, p.x, p.y);
+				//}
+
 			}
 
 		}
