@@ -7,7 +7,7 @@
 #include <SDL_image.h>
 #include "Canvas.h"
 #include "Model.h"
-#include "Draw.h"
+#include "glDraw.h"
 #include "Camera.h"
 #include <windows.h>
 using std::cout;
@@ -149,7 +149,7 @@ int main(int argc, char* argv[])
 	//Matrix model = Matrix::identity();
 
 	SDL_Event event;
-	bool isLeftMouseDown = false;
+	bool isRightMouseDown = false;
 	//RenderingLoop
 	bool quit = true;
 
@@ -158,7 +158,7 @@ int main(int argc, char* argv[])
 	int xFrames = 0;
 
 	Uint64 start, now;
-
+	motion_t motion;
 	while (quit) {
 
 		start = SDL_GetPerformanceCounter();
@@ -172,35 +172,48 @@ int main(int argc, char* argv[])
 				quit = false;
 			}
 
-			if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
-				isLeftMouseDown = true;
+			if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_RIGHT) {				
 				c_lastX = event.motion.x;
 				c_lastY = event.motion.y;
-				cout << "c_lastX : " << c_lastX << endl;
-				cout << "c_lasty : " << c_lastY << endl;
+				isRightMouseDown = true;
 			}
+			
 			if (event.type == SDL_MOUSEBUTTONUP) {
-				isLeftMouseDown = false;
+				isRightMouseDown = false;
 			}
-			if (event.button.button == SDL_BUTTON_LEFT && event.type == SDL_MOUSEMOTION )
+			if (isRightMouseDown && event.type == SDL_MOUSEMOTION)
 			{
-				//if (firstMouse) {
-				//	c_lastX = event.motion.x;
-				//	c_lastY = event.motion.y;
-				//	firstMouse = false;
-				//} 
-				float xoffset = (event.motion.x - c_lastX) / WINDOW_HEIGHT * 3;
-				float yoffset = (event.motion.y - c_lastY) / WINDOW_HEIGHT * 3;
-				cout << "x: " << xoffset << endl;
-				cout << "y: " << yoffset << endl;
-				motion_t motion;
+				//cout << "before c_lastX : " << c_lastX << endl;
+				//cout << "before c_lasty : " << c_lastY << endl;
+				float xoffset = (event.motion.x - c_lastX) / WINDOW_HEIGHT;
+				float yoffset = (event.motion.y - c_lastY) / WINDOW_HEIGHT;
+
+				
 				motion.pan = Vec2f(xoffset, yoffset);
 				camera.UpdateCameraPan(motion);
 
 				c_lastX = event.motion.x;
+				c_lastY = event.motion.y; 
+			}
+
+			if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
+				c_lastX = event.motion.x;
 				c_lastY = event.motion.y;
 			}
 
+			if (event.button.button == SDL_BUTTON_LEFT && event.type == SDL_MOUSEMOTION)
+			{
+				float xdelta = (event.motion.x - c_lastX) / WINDOW_HEIGHT;
+				float ydelta = (event.motion.y - c_lastY) / WINDOW_HEIGHT;
+
+				//motion_t motion;
+				motion.dolly = 0.0;
+				motion.orbit = Vec2f(xdelta, ydelta);
+				camera.UpdateCameraOffset(motion);
+
+				c_lastX = event.motion.x;
+				c_lastY = event.motion.y;
+			}
 		}
 
 		Matrix view = camera.LookAt();
@@ -232,18 +245,18 @@ int main(int argc, char* argv[])
 				intensitys[j] = model->norm(i, j) * light_dir;
 			}	
 
-			//Vec3f n = cross((worldcoords[2] - worldcoords[0]), (worldcoords[1] - worldcoords[0]));
-			//n.normalize();
-			//float intensity = n * light_dir;
+			Vec3f n = cross((worldcoords[2] - worldcoords[0]), (worldcoords[1] - worldcoords[0]));
+			n.normalize();
+			float intensity = n * light_dir;
 
-			//if (intensity > 0) {
-			//	for (int k = 0; k < 3; k++) {
-			//		uvs[k] = model->uv(i, k);
-			//	}
+			if (intensity > 0) {
+				for (int k = 0; k < 3; k++) {
+					uvs[k] = model->uv(i, k);
+				}
 		
 				DrawTriangle(screencoords, intensitys, uvs, zbuffer, *canvas, img);
 				//DrawTriangle(screencoords[0], screencoords[1], screencoords[2], uvs, zbuffer, *canvas, img);
-			//}	
+			}	
 			
 		}
 		//SDL_SetRenderDrawColor(render, 0xFF, 0xFF, 0xFF, 0xFF);
@@ -265,8 +278,8 @@ int main(int argc, char* argv[])
 		nFrames++;
 		if (currentTime - lastTime >= 1.0) { // If last prinf() was more than 1 sec ago
 		// printf and reset timer
-			printf("%f ms/frame\n", 1000.0 / double(nFrames));
-			printf("%d fps\n", nFrames);
+			//printf("%f ms/frame\n", 1000.0 / double(nFrames));
+			//printf("%d fps\n", nFrames);
 			nFrames = 0;
 			lastTime += 1.0;
 		}

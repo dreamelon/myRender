@@ -18,6 +18,8 @@ public:
 	Vec3f center;
 	Vec3f up;
 
+	float aspect;
+
 	Camera(Vec3f pos = Vec3f(0.f, 0.f, 1.0f), Vec3f Center = Vec3f(0.f,0.f,0.f), Vec3f Up = Vec3f(0.f, 1.f, 0.f)) :
 		position(pos), center(Center), up(Up) { }
 
@@ -55,7 +57,8 @@ public:
 		Vec3f up = cross(forward, right);
 
 		float distance = from_camera.norm();
-		float factor = distance * (float)tan(FOVY / 2) * 2;
+		//原来乘2，乘6比较跟手
+		float factor = distance * (float)tan(FOVY / 2) * 6;
 		Vec3f delta_x = right * motion.pan.x * factor;
 		Vec3f delta_y = up * motion.pan.y * factor;
 		return delta_x + delta_y;
@@ -69,8 +72,8 @@ public:
 		Vec3f offset;
 
 		radius *= (float)pow(0.95, motion.dolly);
-		theta -= motion.orbit.x * factor;
-		phi -= motion.orbit.y * factor;
+		theta -= motion.orbit.x * factor; // xoffset 方位角
+		phi -= motion.orbit.y * factor; // yoffset 仰角
 		//phi (0, 180) 
 		phi = float_clamp(phi, EPSILON, PI - EPSILON);
 		//球坐标

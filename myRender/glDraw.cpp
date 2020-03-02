@@ -1,6 +1,5 @@
-#pragma once
 
-#include <sdl.h>
+#include "glDraw.h"
 #include "Canvas.h"
 #include "geometry.h"
 #include <algorithm>
@@ -52,7 +51,7 @@ void DrawLine(int x0, int y0, int x1, int y1, Canvas& canvas, const TGAColor& co
 
 void DrawTriangle(Vec3f t0, Vec3f t1, Vec3f t2, Vec2i* uv, float* zbuffer, Canvas& canvas, TGAImage& img) {
 
-	if (abs(t0.y-t1.y) < 0.001f && abs(t1.y-t2.y) < 0.001f) return;
+	if (abs(t0.y - t1.y) < 0.001f && abs(t1.y - t2.y) < 0.001f) return;
 	//t.y排序
 	if (t0.y > t1.y) {
 		swap(t0, t1);
@@ -73,7 +72,7 @@ void DrawTriangle(Vec3f t0, Vec3f t1, Vec3f t2, Vec2i* uv, float* zbuffer, Canva
 	for (float y = t0.y; y <= t1.y; y++) {
 		float t0t2_t = (y - t0.y) / (float)t0t2_y;
 		float t0t1_t = (y - t0.y) / (float)t0t1_y;
-		
+
 		float t0t2Bound_x = t0.x + (t2.x - t0.x) * t0t2_t;
 		float t0t1Bound_x = t0.x + (t1.x - t0.x) * t0t1_t;
 
@@ -93,13 +92,13 @@ void DrawTriangle(Vec3f t0, Vec3f t1, Vec3f t2, Vec2i* uv, float* zbuffer, Canva
 			int idx = x + y * canvas.width;
 			float delta = (x - t0t2Bound_x) / (t0t1Bound_x - t0t2Bound_x);
 			float z = t0t2Bound_z + delta * (t0t1Bound_z - t0t2Bound_z);
-			Vec2i uv = t0t2_uv +  (t0t1_uv - t0t2_uv) * delta;
+			Vec2i uv = t0t2_uv + (t0t1_uv - t0t2_uv) * delta;
 
-			if (zbuffer[idx]< z) {
+			if (zbuffer[idx] < z) {
 				canvas.SetPixel(img.get(uv.x, uv.y), x, y);
 				zbuffer[idx] = z;
 			}
-			
+
 		}
 		//DrawLine(t0t2Bound_x, y, t0t1Bound_x, y, canvas, color);
 	}
@@ -146,7 +145,7 @@ Vec3f BaryCentric(Vec2i* triangle, Vec2i p) {
 	Vec3f u = cross(Vec3f(triangle[2].x - triangle[0].x, triangle[1].x - triangle[0].x, triangle[0].x - p.x),
 		Vec3f(triangle[2].y - triangle[0].y, triangle[1].y - triangle[0].y, triangle[0].y - p.y));
 	//std::cout << u.z;
- 	//因为triangle都是整数，abs(u.z)<1意味着u.z=0,即不构成三角形
+	//因为triangle都是整数，abs(u.z)<1意味着u.z=0,即不构成三角形
 	if (abs(u.z) < 1) return Vec3f(-1, 1, 1);
 	return Vec3f(1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z);
 }
@@ -194,7 +193,7 @@ bool IsPointInTriangle(Vec3f* triangle, Vec3f p) {
 	float t3 = cross(pc, pa);
 
 	return t1 * t2 >= 0.f && t2 * t3 >= 0.f;
-} 
+}
 
 void DrawTriangle(Vec3f* triangle, float* intensitys, Vec2i* uvs, float* zbuffer, Canvas& canvas, TGAImage& img) {
 	//三角形法 判断点是否在三角形内
@@ -228,31 +227,29 @@ void DrawTriangle(Vec3f* triangle, float* intensitys, Vec2i* uvs, float* zbuffer
 			if (bc_screen.x < error || bc_screen.y < error || bc_screen.z < error) continue;
 			p.z = 0;
 			//for (int i = 0; i < 3; i++) {
-				p.z += bc_screen.x * triangle[0].z;
-				p.z += bc_screen.y * triangle[1].z;
-				p.z += bc_screen.z * triangle[2].z;
+			p.z += bc_screen.x * triangle[0].z;
+			p.z += bc_screen.y * triangle[1].z;
+			p.z += bc_screen.z * triangle[2].z;
 			//}
-			
+
 			//if (IsPointInTriangle(triangle, p)) {
 			//	canvas.SetPixel(color, p.x, p.y);
 			//}
 			if (zbuffer[int(p.x + p.y * canvas.width)] < p.z) {
 				zbuffer[int(p.x + p.y * canvas.width)] = p.z;
-			
+
 				Vec2i uv;
 				Vec3f normal;
 				float intensity = 0.f;
 				for (int i = 0; i < 3; i++) {
-					uv =  uv + uvs[i] * bc_screen[i] ;
+					uv = uv + uvs[i] * bc_screen[i];
 					intensity = intensity + intensitys[i] * bc_screen[i];
 				}
 				//if (intensity > 0) {
-					TGAColor color = img.get(uv.x, uv.y);
-					canvas.SetPixel(color, p.x, p.y);
+				TGAColor color = img.get(uv.x, uv.y);
+				canvas.SetPixel(color, p.x, p.y);
 				//}
-
-			}
-
+			} 
 		}
 	}
 }
