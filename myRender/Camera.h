@@ -6,7 +6,7 @@ typedef struct { Vec2f orbit; Vec2f pan; float dolly; } motion_t;
 
 const float PI = 3.1415926;
 const float EPSILON = 1e-5f;
-const float FOVY = float(60) / float(180)  * PI;
+
 
 inline float float_clamp(float f, float min, float max) {
 	return f < min ? min : (f > max ? max : f);
@@ -19,10 +19,24 @@ public:
 	Vec3f up;
 
 	float aspect;
+	float fov;
 
-	Camera(Vec3f pos = Vec3f(0.f, 0.f, 1.0f), Vec3f Center = Vec3f(0.f,0.f,0.f), Vec3f Up = Vec3f(0.f, 1.f, 0.f)) :
-		position(pos), center(Center), up(Up) { }
+	float near;
+	float far;
+	Camera(Vec3f pos = Vec3f(0.f, 0.f, 1.0f), Vec3f Center = Vec3f(0.f,0.f,0.f), Vec3f Up = Vec3f(0.f, 1.f, 0.f),
+		float Aspect = 1.f, float fovy = PI / 3, float Near = 0.1f, float Far = 1000.f) :
+		position(pos), center(Center), up(Up), aspect(Aspect), fov(fovy), near(Near), far(Far) { }
 
+
+ //R * T 先平移到原点再进行基向量变换
+ /*
+ eye为相机位置position，一般在+z轴
+ * u  -dot(u,eye)
+ * v  -dot(v,eye)
+ * w  -dot(w,eye)
+ * 0       1        
+
+ */
 	Matrix LookAt() {
 		Matrix m = Matrix::identity();
 		//为了让摄像机指向正 z 方向
@@ -48,8 +62,19 @@ public:
 		return m;
 	}
 
+	//右手系推导，遵循n,f都为距离，为正值
+	/*
+	*/
 	Matrix projection() {
 		Matrix m = Matrix::identity();
+		float cottheta = 1 / tan(fov / 2);
+		m[0][0] = cottheta / aspect;
+		m[1][1] = cottheta;
+		m[2][2] = -(near + far) / (far - near);
+		m[2][3] = 2 * near * far / (near - far);
+		m[3][2] = -1;
+		m[3][3] = 0;
+		return m;
 	}
 	Vec3f calculate_pan(Vec3f from_camera, motion_t motion) {
 		Vec3f forward = from_camera.normalize();
@@ -58,7 +83,7 @@ public:
 
 		float distance = from_camera.norm();
 		//原来乘2，乘6比较跟手
-		float factor = distance * (float)tan(FOVY / 2) * 6;
+		float factor = distance * (float)tan(fov / 2) * 6;
 		Vec3f delta_x = right * motion.pan.x * factor;
 		Vec3f delta_y = up * motion.pan.y * factor;
 		return delta_x + delta_y;

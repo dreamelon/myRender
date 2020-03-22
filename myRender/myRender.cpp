@@ -10,6 +10,7 @@
 #include "glDraw.h"
 #include "Camera.h"
 #include <windows.h>
+
 using std::cout;
 using std::endl;
 using std::abs;
@@ -55,9 +56,20 @@ mat<4, 1, float> v2m(Vec3f v) {
 }
 
 Vec3f m2v(mat<4, 1, float> m) {
+	if (m[3][0] < 0) {
+		std::cout << "wrong\n";
+	}
 	return Vec3f(int(m[0][0] / m[3][0]), int(m[1][0] / m[3][0]), int(m[2][0] / m[3][0]));
 }
-//void DrawLine(int x0, int y0, int x1, int y1, Canvas& canvas, SDL_Color color);
+
+Vec4f v2norm(mat<4, 1, float> m) {
+	Vec4f v;
+	v[0] = int(m[0][0] / m[3][0]);
+	v[1] = int(m[1][0] / m[3][0]);
+	v[2] = int(m[2][0] / m[3][0]);
+	v[3] = 1;
+	return v;
+}
 
 
 /* misc platform functions */
@@ -136,16 +148,16 @@ int main(int argc, char* argv[])
 	Canvas* canvas = new Canvas(WINDOW_WIDTH, WINDOW_HEIGHT);
 	
 	Model* model = new Model("obj/african_head.obj");
+	//Model* model = new Model("obj/cyborg.obj");
 	TGAImage img = model->GetImage();
 
 	float* zbuffer = new float[WINDOW_WIDTH * WINDOW_HEIGHT];
 	
-	Matrix projection = Matrix::identity();
+	Matrix projection = camera.projection();
 	//视口转换
 	Matrix viewport = ViewPort(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-	projection[3][2] = -1.f / (camera.position.z - center.z);
+	//projection[3][2] = -1.f / (camera.position.z - center.z);
 
-	
 	//Matrix model = Matrix::identity();
 
 	SDL_Event event;
@@ -222,7 +234,22 @@ int main(int argc, char* argv[])
 		
 		//DrawLine(10, 20, 200, 400, *canvas, color);
 
-		Vec2i t0[3] = { Vec2i(10, 70),   Vec2i(50, 160),  Vec2i(70, 80) };
+		//Vec3f pos[6] = {Vec3f(-0.5f, -0.5f, -0.5f),   Vec3f(0.5f, 0.5f, -0.5f),  
+		//				Vec3f(0.5f, -0.5f, -0.5f),	  Vec3f(0.5f, 0.5f, -0.5f),
+		//				Vec3f(-0.5f, -0.5f, -0.5f),   Vec3f(-0.5f, 0.5f, -0.5f)
+		//};
+		//
+
+		//Vec3f norm[6] = { Vec3f(0.0f, 0.0f, -1.0f),   Vec3f(0.0f, 0.0f, -1.0f),
+		//				Vec3f(0.0f, 0.0f, -1.0f),	  Vec3f(0.0f, 0.0f, -1.0f),
+		//				Vec3f(0.0f, 0.0f, -1.0f),   Vec3f(0.0f, 0.0f, -1.0f)
+		//};
+
+		//Vec2f texcoords[6] = { Vec2f(0.0f, 0.0f),   Vec2f(1.0f, 0.0f),
+		//				Vec2f(1.0f, 1.0f),	  Vec2f(1.0f, 1.0f),
+		//				Vec2f(0.0f, 1.0f),   Vec2f(0.0f, 0.0f)
+
+		//};
 		//DrawTriangle(t0, *canvas, color);
 		for (int i = 0; i < model->nfaces(); i++) {
 			color = TGAColor(255, 255, 255, 255);
@@ -235,7 +262,7 @@ int main(int argc, char* argv[])
 			for (int j = 0; j < 3; j++) {
 				worldcoords[j] = model->vert(face[j][0]);
  
-				screencoords[j] = m2v(viewport * (projection * view * v2m(worldcoords[j])));
+				screencoords[j] = m2v(viewport * projection * view * v2m(worldcoords[j]));
 				screencoords[j].y = WINDOW_HEIGHT - screencoords[j].y;
 				//屏幕坐标转为int？？
 				//screencoords[j] = Vec3f(int((worldcoords[j].x + 1)*WINDOW_WIDTH/2 +.5), int(WINDOW_HEIGHT - (worldcoords[j].y + 1)*WINDOW_HEIGHT/2 - .5), worldcoords[j].z);
@@ -250,10 +277,6 @@ int main(int argc, char* argv[])
 			float intensity = n * light_dir;
 
 			if (intensity > 0) {
-				for (int k = 0; k < 3; k++) {
-					uvs[k] = model->uv(i, k);
-				}
-		
 				DrawTriangle(screencoords, intensitys, uvs, zbuffer, *canvas, img);
 				//DrawTriangle(screencoords[0], screencoords[1], screencoords[2], uvs, zbuffer, *canvas, img);
 			}	
