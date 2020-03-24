@@ -39,12 +39,11 @@ Model::Model(const char* filename) : verts_(), faces_() {
 		else if (!line.compare(0, 2, "f ")) {
 			std::vector<Vec3i> f;
 			
-			//表示顶点、法线和纹理的索引，暂时没用
+			//表示顶点、法线和纹理的索引
 			Vec3i index;
 			iss >> trash;
 			while (iss >> index[0] >> trash >> index[1] >> trash >> index[2]) {
-				for (int i = 0; i < 3; i++) { index[i]--; } // in wavefront obj all indices start at 1, not zero
-				f.push_back(index);
+				for (int i = 0; i < 3; i++) { index[i]--; } //  obj模型索引从1开始，而vector从0开始
 			}
 			faces_.push_back(f);
 		}
@@ -53,9 +52,9 @@ Model::Model(const char* filename) : verts_(), faces_() {
 	LoadTexture(filename, "_diffuse.tga", diffuseMap);
 }
 
-Vec2i Model::uv(int iface, int nvert) {
+Vec2f Model::uv(int iface, int nvert) {
 	int idx = faces_[iface][nvert][1];
-	return Vec2i(uvs_[idx].x * diffuseMap.get_width(), uvs_[idx].y * diffuseMap.get_height());
+	return uvs_[idx];
 }
 
 Vec3f Model::norm(int iface, int nvert) {

@@ -12,6 +12,7 @@ private:
 	// face 54/31/54 53/34/53 152/133/152  一个面三个顶点，位置/uv/法线的索引
 	std::vector<std::vector<Vec3i> > faces_;
 	TGAImage diffuseMap;
+
 	void LoadTexture(std::string filename, const char* suffix, TGAImage& image);
 public:
 	Model(const char* filename);
@@ -20,7 +21,7 @@ public:
 	int nfaces();
 	Vec3f vert(int i);
 	std::vector<Vec3i> face(int idx);
-	Vec2i uv(int iface, int nvert);
+	Vec2f uv(int iface, int nvert);
 	Vec3f norm(int iface, int nvert);
 	TGAImage GetImage() {	return diffuseMap;	}
 };

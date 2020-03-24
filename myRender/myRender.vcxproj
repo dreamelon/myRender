@@ -157,19 +157,19 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Canvas.cpp" />
+    <ClCompile Include="canvas.cpp" />
     <ClCompile Include="geometry.cpp" />
-    <ClCompile Include="glDraw.cpp" />
-    <ClCompile Include="Model.cpp" />
+    <ClCompile Include="rasterize.cpp" />
+    <ClCompile Include="model.cpp" />
     <ClCompile Include="myRender.cpp" />
     <ClCompile Include="tgaimage.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Camera.h" />
-    <ClInclude Include="Canvas.h" />
-    <ClInclude Include="glDraw.h" />
+    <ClInclude Include="camera.h" />
+    <ClInclude Include="canvas.h" />
     <ClInclude Include="geometry.h" />
-    <ClInclude Include="Model.h" />
+    <ClInclude Include="rasterize.h" />
+    <ClInclude Include="model.h" />
     <ClInclude Include="tgaimage.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

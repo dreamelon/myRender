@@ -1,14 +1,13 @@
 // myRender.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
 
-//#define SDL_MAIN_HANDLED
+
 #include <iostream>
 #include <SDL.h>
 #include <SDL_image.h>
-#include "Canvas.h"
-#include "Model.h"
-#include "glDraw.h"
-#include "Camera.h"
+#include "canvas.h"
+#include "model.h"        
+#include "rasterize.h"
+#include "camera.h"
 #include <windows.h>
 
 using std::cout;
@@ -59,7 +58,7 @@ Vec3f m2v(mat<4, 1, float> m) {
 	if (m[3][0] < 0) {
 		std::cout << "wrong\n";
 	}
-	return Vec3f(int(m[0][0] / m[3][0]), int(m[1][0] / m[3][0]), int(m[2][0] / m[3][0]));
+	return Vec3f((m[0][0] / m[3][0]), (m[1][0] / m[3][0]), (m[2][0] / m[3][0]));
 }
 
 Vec4f v2norm(mat<4, 1, float> m) {
@@ -156,9 +155,8 @@ int main(int argc, char* argv[])
 	Matrix projection = camera.projection();
 	//视口转换
 	Matrix viewport = ViewPort(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-	//projection[3][2] = -1.f / (camera.position.z - center.z);
 
-	//Matrix model = Matrix::identity();
+	Shader shader;
 
 	SDL_Event event;
 	bool isRightMouseDown = false;
@@ -231,55 +229,60 @@ int main(int argc, char* argv[])
 		Matrix view = camera.LookAt();
 		// canvas setpixel draw sth
 		TGAColor color(255, 255, 255, 255);
+
+		Vec3f pos[6] = {Vec3f(-0.5f, -0.5f, -0.5f),   Vec3f(0.5f, 0.5f, -0.5f),  
+						Vec3f(0.5f, -0.5f, -0.5f),	  Vec3f(0.5f, 0.5f, -0.5f),
+						Vec3f(-0.5f, -0.5f, -0.5f),   Vec3f(-0.5f, 0.5f, -0.5f)
+		};
 		
-		//DrawLine(10, 20, 200, 400, *canvas, color);
 
-		//Vec3f pos[6] = {Vec3f(-0.5f, -0.5f, -0.5f),   Vec3f(0.5f, 0.5f, -0.5f),  
-		//				Vec3f(0.5f, -0.5f, -0.5f),	  Vec3f(0.5f, 0.5f, -0.5f),
-		//				Vec3f(-0.5f, -0.5f, -0.5f),   Vec3f(-0.5f, 0.5f, -0.5f)
-		//};
-		//
+		Vec3f norm[6] = { Vec3f(0.0f, 0.0f, -1.0f),   Vec3f(0.0f, 0.0f, -1.0f),
+						Vec3f(0.0f, 0.0f, -1.0f),	  Vec3f(0.0f, 0.0f, -1.0f),
+						Vec3f(0.0f, 0.0f, -1.0f),   Vec3f(0.0f, 0.0f, -1.0f)
+		};
 
-		//Vec3f norm[6] = { Vec3f(0.0f, 0.0f, -1.0f),   Vec3f(0.0f, 0.0f, -1.0f),
-		//				Vec3f(0.0f, 0.0f, -1.0f),	  Vec3f(0.0f, 0.0f, -1.0f),
-		//				Vec3f(0.0f, 0.0f, -1.0f),   Vec3f(0.0f, 0.0f, -1.0f)
-		//};
+		Vec2f texcoords[6] = { Vec2f(0.0f, 0.0f),   Vec2f(1.0f, 0.0f),
+						Vec2f(1.0f, 1.0f),	  Vec2f(1.0f, 1.0f),
+						Vec2f(0.0f, 1.0f),   Vec2f(0.0f, 0.0f)
+		};
+		//Vertex v[6];
+		//for (int i = 0; i < 6; i++) {
+		//	v[i].position = 
+		//}
+		
 
-		//Vec2f texcoords[6] = { Vec2f(0.0f, 0.0f),   Vec2f(1.0f, 0.0f),
-		//				Vec2f(1.0f, 1.0f),	  Vec2f(1.0f, 1.0f),
-		//				Vec2f(0.0f, 1.0f),   Vec2f(0.0f, 0.0f)
-
-		//};
 		//DrawTriangle(t0, *canvas, color);
 		for (int i = 0; i < model->nfaces(); i++) {
 			color = TGAColor(255, 255, 255, 255);
 			std::vector<Vec3i> face = model->face(i);
-			Vec3f screencoords[3];
-			Vec3f worldcoords[3];
-			Vec2i uvs[3];
+			Vertex vert[3];
+			//Vec3f screencoords[3];
+			//Vec3f worldcoords[3];
 			//Vec3f normals[3];
-			float intensitys[3];
+			//Vec2f uvs[3];
 			for (int j = 0; j < 3; j++) {
-				worldcoords[j] = model->vert(face[j][0]);
- 
-				screencoords[j] = m2v(viewport * projection * view * v2m(worldcoords[j]));
-				screencoords[j].y = WINDOW_HEIGHT - screencoords[j].y;
-				//屏幕坐标转为int？？
-				//screencoords[j] = Vec3f(int((worldcoords[j].x + 1)*WINDOW_WIDTH/2 +.5), int(WINDOW_HEIGHT - (worldcoords[j].y + 1)*WINDOW_HEIGHT/2 - .5), worldcoords[j].z);
-				
-				uvs[j] = model->uv(i, j);
-				//normals[j] = model->norm(i, j);		
-				intensitys[j] = model->norm(i, j) * light_dir;
+				vert[j].position = model->vert(face[j][0]);
+				//vert[j].uv = model->uv(i, j);
+				//uvs[j] = model->uv(i, j);
+				//worldcoords[j] = model->vert(face[j][0]);
+				vert[j].position = m2v(viewport * projection * view * v2m(vert[j].position));
+
+				//shader.vert();
+
+				//screencoords[j] = m2v(viewport * projection * view * v2m(worldcoords[j]));
+
+				vert[j].position.y = WINDOW_HEIGHT - vert[j].position.y;
+				//screencoords[j].y = WINDOW_HEIGHT - screencoords[j].y;
 			}	
 
-			Vec3f n = cross((worldcoords[2] - worldcoords[0]), (worldcoords[1] - worldcoords[0]));
-			n.normalize();
-			float intensity = n * light_dir;
+			//Vec3f n = cross((worldcoords[2] - worldcoords[0]), (worldcoords[1] - worldcoords[0]));
+			//n.normalize();
+			//float intensity = n * light_dir;
 
-			if (intensity > 0) {
-				DrawTriangle(screencoords, intensitys, uvs, zbuffer, *canvas, img);
+			//if (intensity > 0) {
+				Rasterize(vert, zbuffer, shader, *canvas, img);
 				//DrawTriangle(screencoords[0], screencoords[1], screencoords[2], uvs, zbuffer, *canvas, img);
-			}	
+			//}	
 			
 		}
 		//SDL_SetRenderDrawColor(render, 0xFF, 0xFF, 0xFF, 0xFF);
@@ -330,15 +333,3 @@ int main(int argc, char* argv[])
 }
 
 
-
-
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
-
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file

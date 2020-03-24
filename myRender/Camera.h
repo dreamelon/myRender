@@ -5,8 +5,6 @@
 typedef struct { Vec2f orbit; Vec2f pan; float dolly; } motion_t;
 
 const float PI = 3.1415926;
-const float EPSILON = 1e-5f;
-
 
 inline float float_clamp(float f, float min, float max) {
 	return f < min ? min : (f > max ? max : f);
@@ -28,13 +26,15 @@ public:
 		position(pos), center(Center), up(Up), aspect(Aspect), fov(fovy), near(Near), far(Far) { }
 
 
- //R * T 先平移到原点再进行基向量变换
+
  /*
+ R * T * vertex 先平移到原点再进行基向量变换
  eye为相机位置position，一般在+z轴
+
  * u  -dot(u,eye)
  * v  -dot(v,eye)
  * w  -dot(w,eye)
- * 0       1        
+ * 0       1     
 
  */
 	Matrix LookAt() {
@@ -62,9 +62,11 @@ public:
 		return m;
 	}
 
-	//右手系推导，遵循n,f都为距离，为正值
-	/*
-	*/
+/*
+右手系推导，遵循n,f都为距离，为正值
+
+
+*/
 	Matrix projection() {
 		Matrix m = Matrix::identity();
 		float cottheta = 1 / tan(fov / 2);
