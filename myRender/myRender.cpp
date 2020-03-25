@@ -55,18 +55,16 @@ mat<4, 1, float> v2m(Vec3f v) {
 }
 
 Vec3f m2v(mat<4, 1, float> m) {
-	if (m[3][0] < 0) {
-		std::cout << "wrong\n";
-	}
 	return Vec3f((m[0][0] / m[3][0]), (m[1][0] / m[3][0]), (m[2][0] / m[3][0]));
 }
 
-Vec4f v2norm(mat<4, 1, float> m) {
+Vec4f PerspectiveDivision(Vec4f m) {
 	Vec4f v;
-	v[0] = int(m[0][0] / m[3][0]);
-	v[1] = int(m[1][0] / m[3][0]);
-	v[2] = int(m[2][0] / m[3][0]);
-	v[3] = 1;
+	float rhw = 1 / m[3];
+	v[0] = m[0] * rhw;
+	v[1] = m[1] * rhw;
+	v[2] = m[2] * rhw;
+	v[3] = rhw;
 	return v;
 }
 
@@ -151,12 +149,13 @@ int main(int argc, char* argv[])
 	TGAImage img = model->GetImage();
 
 	float* zbuffer = new float[WINDOW_WIDTH * WINDOW_HEIGHT];
-	
-	Matrix projection = camera.projection();
+
+	TextureShader shader;
+	shader.projection = camera.projection();
+	shader.model = Matrix::identity();
+
 	//视口转换
 	Matrix viewport = ViewPort(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-
-	Shader shader;
 
 	SDL_Event event;
 	bool isRightMouseDown = false;
@@ -175,7 +174,8 @@ int main(int argc, char* argv[])
 
 		memset(canvas->pixelData, 0, canvas->width * canvas ->height * sizeof(Uint32));
 		
-		for (int i = WINDOW_WIDTH * WINDOW_HEIGHT; i--; zbuffer[i] = -FLT_MAX);
+		//每次清空zbuffer
+		for (int i = WINDOW_WIDTH * WINDOW_HEIGHT; i--; zbuffer[i] = FLT_MAX);
 
 		while (SDL_PollEvent(&event)) {
 			if (event.type == SDL_QUIT) {
@@ -226,7 +226,8 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		Matrix view = camera.LookAt();
+		shader.view = camera.LookAt();
+
 		// canvas setpixel draw sth
 		TGAColor color(255, 255, 255, 255);
 
@@ -255,35 +256,20 @@ int main(int argc, char* argv[])
 		for (int i = 0; i < model->nfaces(); i++) {
 			color = TGAColor(255, 255, 255, 255);
 			std::vector<Vec3i> face = model->face(i);
-			Vertex vert[3];
-			//Vec3f screencoords[3];
-			//Vec3f worldcoords[3];
-			//Vec3f normals[3];
-			//Vec2f uvs[3];
+			A2V	 a2v[3];
+			V2F  v2f[3];
 			for (int j = 0; j < 3; j++) {
-				vert[j].position = model->vert(face[j][0]);
-				//vert[j].uv = model->uv(i, j);
-				//uvs[j] = model->uv(i, j);
-				//worldcoords[j] = model->vert(face[j][0]);
-				vert[j].position = m2v(viewport * projection * view * v2m(vert[j].position));
+				a2v[j].position = model->vert(face[j][0]);
+				a2v[j].uv = model->uv(i, j);
+				a2v[j].normal = model->norm(i, j);
+				//vert[j].position = projection * view * Vec4f(vert[j].position, 1.f);
 
-				//shader.vert();
-
-				//screencoords[j] = m2v(viewport * projection * view * v2m(worldcoords[j]));
-
-				vert[j].position.y = WINDOW_HEIGHT - vert[j].position.y;
-				//screencoords[j].y = WINDOW_HEIGHT - screencoords[j].y;
+				v2f[j] = shader.vert(a2v[j]);
+				v2f[j].position = viewport * PerspectiveDivision(v2f[j].position);
+				//v2f[j].position.y = WINDOW_HEIGHT - v2f[j].position.y;
 			}	
-
-			//Vec3f n = cross((worldcoords[2] - worldcoords[0]), (worldcoords[1] - worldcoords[0]));
-			//n.normalize();
-			//float intensity = n * light_dir;
-
-			//if (intensity > 0) {
-				Rasterize(vert, zbuffer, shader, *canvas, img);
-				//DrawTriangle(screencoords[0], screencoords[1], screencoords[2], uvs, zbuffer, *canvas, img);
-			//}	
-			
+			Rasterize(v2f, zbuffer, shader, *canvas, img);
+			//DrawTriangle(screencoords[0], screencoords[1], screencoords[2], uvs, zbuffer, *canvas, img);			
 		}
 		//SDL_SetRenderDrawColor(render, 0xFF, 0xFF, 0xFF, 0xFF);
 		SDL_RenderClear(render);

@@ -49,6 +49,7 @@ void DrawLine(int x0, int y0, int x1, int y1, Canvas& canvas, const TGAColor& co
 	}
 }
 
+//扫描线法，分成上下两个三角形
 void DrawTriangle(Vec3f t0, Vec3f t1, Vec3f t2, Vec2i* uv, float* zbuffer, Canvas& canvas, TGAImage& img) {
 
 	if (abs(t0.y - t1.y) < 0.001f && abs(t1.y - t2.y) < 0.001f) return;
@@ -141,25 +142,10 @@ void DrawTriangle(Vec3f t0, Vec3f t1, Vec3f t2, Vec2i* uv, float* zbuffer, Canva
 即uv1与ab,ac,pa的x轴，y轴都垂直。所以叉乘
 要满足“1 >= u >= 0, 1 >= v >= 0, u+v <= 1”，则p在三角形abc中
 */
-Vec3f BaryCentric(Vec2i* triangle, Vec2i p) {
+Vec3f BaryCentric(Vec3f* triangle, Vec2i p) {
 	Vec3f u = cross(Vec3f(triangle[2].x - triangle[0].x, triangle[1].x - triangle[0].x, triangle[0].x - p.x),
 		Vec3f(triangle[2].y - triangle[0].y, triangle[1].y - triangle[0].y, triangle[0].y - p.y));
-	//std::cout << u.z;
 	//因为triangle都是整数，abs(u.z)<1意味着u.z=0,即不构成三角形
-	if (abs(u.z) < 1) return Vec3f(-1, 1, 1);
-	return Vec3f(1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z);
-}
-
-Vec3f BaryCentric(Vec3f* triangle, Vec3f p) {
-	Vec3f u = cross(Vec3f(triangle[2].x - triangle[0].x, triangle[1].x - triangle[0].x, triangle[0].x - p.x),
-		Vec3f(triangle[2].y - triangle[0].y, triangle[1].y - triangle[0].y, triangle[0].y - p.y));
-	//Vec3f s[2];
-	//for (int i = 2; i--; ) {
-	//	s[i][0] = triangle[2][i] - triangle[0][i];
-	//	s[i][1] = triangle[1][i] - triangle[2][i];
-	//	s[i][2] = triangle[0][i] - p[i];
-	//}
-	//Vec3f u = cross(s[0], s[1]);
 	if (abs(u.z) <= 0.01f) return Vec3f(-1, 1, 1);
 	return Vec3f(1.f - (u.x + u.y) / u.z, u.y / u.z, u.x / u.z);
 }
@@ -170,19 +156,7 @@ t1 = PA^PB,
 t2 = PB^PC,
 t3 = PC^PA, 三者同号在三角形内部
 */
-bool IsPointInTriangle(Vec2i* triangle, Vec2i p) {
-	Vec2i pa = triangle[0] - p;
-	Vec2i pb = triangle[1] - p;
-	Vec2i pc = triangle[2] - p;
-
-	int t1 = cross(pa, pb);
-	int t2 = cross(pb, pc);
-	int t3 = cross(pc, pa);
-
-	return t1 * t2 >= 0 && t2 * t3 >= 0;
-}
-
-bool IsPointInTriangle(Vec3f* triangle, Vec3f p) {
+bool IsPointInTriangle(Vec3f* triangle, Vec3i p) {
 	Vec2f pa = Vec2f(triangle[0].x, triangle[0].y) - Vec2f(p.x, p.y);
 	Vec2f pb = Vec2f(triangle[1].x, triangle[1].y) - Vec2f(p.x, p.y);
 	Vec2f pc = Vec2f(triangle[2].x, triangle[2].y) - Vec2f(p.x, p.y);
@@ -194,7 +168,7 @@ bool IsPointInTriangle(Vec3f* triangle, Vec3f p) {
 	return t1 * t2 >= 0.f && t2 * t3 >= 0.f;
 }
 
-void Rasterize(Vertex* vertexes, float* zbuffer, Shader& shader, Canvas& canvas, TGAImage& img) {
+void Rasterize(V2F* vertexes, float* zbuffer, Shader& shader, Canvas& canvas, TGAImage& img) {
 	//三角形法 判断点是否在三角形内
 	//首先找到包围三角形的矩形
 	//Vec2f bboxmin(canvas.width - 1, canvas.height - 1);
@@ -217,25 +191,25 @@ void Rasterize(Vertex* vertexes, float* zbuffer, Shader& shader, Canvas& canvas,
 		bboxmin.y = max(0.f, min(bboxmin.y, triangle[i].y));
 	}
 
-	Vec3i p;
-	for (p.x = bboxmin.x; p.x <= bboxmax.x; p.x++) {
-		for (p.y = bboxmin.y; p.y <= bboxmax.y; p.y++) {
+
+	int x, y;
+	float z;
+	for (x = bboxmin.x; x <= bboxmax.x; x++) {
+		for (y = bboxmin.y; y <= bboxmax.y; y++) {
 			//if (IsPointInTriangle(triangle, p)) {
 			//	canvas.SetPixel(color, p.x, p.y);
 			//}
 
-			Vec3f bc_screen = BaryCentric(triangle, p);
+			Vec3f bc_screen = BaryCentric(triangle, Vec2i(x, y));
 
 			if (bc_screen.x < EPSILON || bc_screen.y < EPSILON || bc_screen.z < EPSILON) continue;
-			p.z = 0;
-			//for (int i = 0; i < 3; i++) {
-			p.z += bc_screen.x * triangle[0].z;
-			p.z += bc_screen.y * triangle[1].z;
-			p.z += bc_screen.z * triangle[2].z;
-			//}
+			z = 0.f;
+			for (int i = 0; i < 3; i++) {
+				z += bc_screen[i] * triangle[i].z;
+			}
 
-			if (zbuffer[int(p.x + p.y * canvas.width)] < p.z) {
-				zbuffer[int(p.x + p.y * canvas.width)] = p.z;
+			if (zbuffer[int(x + y * canvas.width)] > z) {
+				zbuffer[int(x + y * canvas.width)] = z;
 
 				Vec2f uv;
 				//Vec3f normal;
@@ -243,17 +217,20 @@ void Rasterize(Vertex* vertexes, float* zbuffer, Shader& shader, Canvas& canvas,
 					uv = uv + uvs[i] * bc_screen[i];
 				}
 				TGAColor color = img.get(uv.x, uv.y);
-				canvas.SetPixel(color, p.x, p.y);
-			} 
+				canvas.SetPixel(color, x, y);
+			}
 		}
 	}
 }
 
-V2F Shader::vert(Vertex verts) {
-	V2F v;
-	return v;
+V2F TextureShader::vert(A2V v) {
+	V2F v2f;
+	v2f.position = projection * view * model * Vec4f(v.position, 1);
+	v2f.uv = v.uv;
+	v2f.normal = Vec3f(model.invert_transpose() * Vec4f(v.normal, 1));
+	return v2f;
 }
 
-TGAColor Shader::frag(V2F o) {
+TGAColor TextureShader::frag(V2F o) {
 	return TGAColor();
 }

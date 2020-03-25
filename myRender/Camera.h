@@ -74,8 +74,8 @@ public:
 		m[1][1] = cottheta;
 		m[2][2] = -(near + far) / (far - near);
 		m[2][3] = 2 * near * far / (near - far);
-		m[3][2] = -1;
-		m[3][3] = 0;
+		m[3][2] = -1.f;
+		m[3][3] = 0.f;
 		return m;
 	}
 	Vec3f calculate_pan(Vec3f from_camera, motion_t motion) {

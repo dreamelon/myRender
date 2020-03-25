@@ -44,6 +44,7 @@ Model::Model(const char* filename) : verts_(), faces_() {
 			iss >> trash;
 			while (iss >> index[0] >> trash >> index[1] >> trash >> index[2]) {
 				for (int i = 0; i < 3; i++) { index[i]--; } //  obj模型索引从1开始，而vector从0开始
+				f.push_back(index);
 			}
 			faces_.push_back(f);
 		}
@@ -54,7 +55,7 @@ Model::Model(const char* filename) : verts_(), faces_() {
 
 Vec2f Model::uv(int iface, int nvert) {
 	int idx = faces_[iface][nvert][1];
-	return uvs_[idx];
+	return Vec2f(uvs_[idx].x * diffuseMap.get_width() + .5f, uvs_[idx].y  * diffuseMap.get_height() + .5f);
 }
 
 Vec3f Model::norm(int iface, int nvert) {

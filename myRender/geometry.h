@@ -1,13 +1,8 @@
-
-
-#ifndef __GEOMETRY_H__
-#define __GEOMETRY_H__
+#pragma once
 #include <cmath>
 #include <vector>
 #include <cassert>
 #include <iostream>
-
-const float EPSILON = 1e-5f;
 
 template<size_t DimCols, size_t DimRows, typename T> class mat;
 
@@ -36,6 +31,7 @@ template <typename T> struct vec<2, T> {
 template <typename T> struct vec<3, T> {
 	vec() : x(T()), y(T()), z(T()) {}
 	vec(T X, T Y, T Z) : x(X), y(Y), z(Z) {}
+	vec(vec<4, T> v) : x(v.x), y(v.y), z(v.z) {}
 	template <class U> vec<3, T>(const vec<3, U>& v);
 	T& operator[](const size_t i) { assert(i < 3); return i <= 0 ? x : (1 == i ? y : z); }
 	const T& operator[](const size_t i) const { assert(i < 3); return i <= 0 ? x : (1 == i ? y : z); }
@@ -213,12 +209,6 @@ template <size_t DimRows, size_t DimCols, class T> std::ostream& operator<<(std:
 	return out;
 }
 
-
-template <typename T> T cross(vec<2, T> v1, vec<2, T> v2) {
-	return v1.x * v2.y - v1.y * v2.x;
-}
-
-
 /////////////////////////////////////////////////////////////////////////////////
 
 typedef vec<2, float> Vec2f;
@@ -229,6 +219,38 @@ typedef vec<4, float> Vec4f;
 typedef mat<4, 4, float> Matrix;
 
 
+const float EPSILON = 1e-5f;
 
-#endif //__GEOMETRY_H__
+template <typename T> struct vec<4, T> {
+	vec() : x(T()), y(T()), z(T()), w(T()) {}
+	vec(T X, T Y, T Z, T W) : x(X), y(Y), z(Z), w(W) {}
+	vec(vec<3, T> v, T W) : x(v.x), y(v.y), z(v.z), w(W) {}
+	template <class U> vec<4, T>(const vec<4, U>& v);
+	T& operator[](const size_t i) { assert(i < 4); return i <= 0 ? x : (1 == i ? y : (2 == i ? z : w)); }
+	const T& operator[](const size_t i) const { assert(i < 4); return i <= 0 ? x : (1 == i ? y : (2 == i ? z : w)); }
+	float norm() { return std::sqrt(x * x + y * y + z * z + w * w); }
+	vec<4, T>& normalize(T l = 1) { *this = (*this) * (l / norm()); return *this; }
+
+	T x, y, z, w;
+};
+
+template <typename T> T cross(vec<2, T> v1, vec<2, T> v2) {
+	return v1.x * v2.y - v1.y * v2.x;
+}
+
+struct A2V
+{
+	Vec3f position;
+	Vec3f normal;
+	Vec2f uv;
+};
+
+struct V2F {
+	Vec4f position;
+	Vec3f worldPos;
+	Vec3f normal;
+	Vec2f uv;
+};
+
+
 
