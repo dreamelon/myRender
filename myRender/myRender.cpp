@@ -31,16 +31,20 @@ width    0    0   0			 1	0	0	1
 0        0	  0   1			 0	0	0	1
 */
 
-Matrix ViewPort(int x, int y, int w, int h) {
+Vec4f ViewPort(Vec4f v) {
 	Matrix m = Matrix::identity();
-	m[0][3] = x + w / 2.f;
-	m[1][3] = y + h / 2.f;
+	m[0][3] = WINDOW_WIDTH / 2.f;
+	m[1][3] = WINDOW_HEIGHT / 2.f;
 	//m[2][3] = depth / 2.f;
 
-	m[0][0] = w / 2.f;
-	m[1][1] = h / 2.f;
+	m[0][0] = WINDOW_WIDTH / 2.f;
+	m[1][1] = WINDOW_HEIGHT / 2.f;
 	//m[2][2] = depth / 2.f;
-	return m;
+	float rhw = v.w;
+	v.w = 1.f;
+	Vec4f temp = m * v;
+	temp.w = rhw;
+	return temp;
 }
 
 
@@ -154,9 +158,6 @@ int main(int argc, char* argv[])
 	shader.projection = camera.projection();
 	shader.model = Matrix::identity();
 
-	//ÊÓ¿Ú×ª»»
-	Matrix viewport = ViewPort(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-
 	SDL_Event event;
 	bool isRightMouseDown = false;
 	//RenderingLoop
@@ -265,8 +266,8 @@ int main(int argc, char* argv[])
 				//vert[j].position = projection * view * Vec4f(vert[j].position, 1.f);
 
 				v2f[j] = shader.vert(a2v[j]);
-				v2f[j].position = viewport * PerspectiveDivision(v2f[j].position);
-				//v2f[j].position.y = WINDOW_HEIGHT - v2f[j].position.y;
+				v2f[j].position = ViewPort(PerspectiveDivision(v2f[j].position));
+				v2f[j].position.y = WINDOW_HEIGHT - v2f[j].position.y;
 			}	
 			Rasterize(v2f, zbuffer, shader, *canvas, img);
 			//DrawTriangle(screencoords[0], screencoords[1], screencoords[2], uvs, zbuffer, *canvas, img);			

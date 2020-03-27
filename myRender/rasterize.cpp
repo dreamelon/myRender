@@ -175,9 +175,11 @@ void Rasterize(V2F* vertexes, float* zbuffer, Shader& shader, Canvas& canvas, TG
 	//Vec2f bboxmax(0, 0);
 	Vec3f triangle[3];
 	Vec2f uvs[3];
+	float rhw[3];
 	for (int i = 0; i < 3; i++) {
 		triangle[i] = vertexes[i].position;
 		uvs[i] = vertexes[i].uv;
+		rhw[i] = vertexes[i].position.w;
 	}
 
 	Vec2f bboxmin(std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
@@ -204,6 +206,9 @@ void Rasterize(V2F* vertexes, float* zbuffer, Shader& shader, Canvas& canvas, TG
 
 			if (bc_screen.x < EPSILON || bc_screen.y < EPSILON || bc_screen.z < EPSILON) continue;
 			z = 0.f;
+			//z' = 2nf / (z * (f-n)) + (n+f) / (f-n)  
+			//z是相机空间坐标，z'与1/z成正比, xy也要做透视除法，与1/z成正比
+			
 			for (int i = 0; i < 3; i++) {
 				z += bc_screen[i] * triangle[i].z;
 			}
@@ -213,9 +218,13 @@ void Rasterize(V2F* vertexes, float* zbuffer, Shader& shader, Canvas& canvas, TG
 
 				Vec2f uv;
 				//Vec3f normal;
-				for (int i = 0; i < 3; i++) {
-					uv = uv + uvs[i] * bc_screen[i];
+				float  interpolate_rhw = 0.f;
+				for (int i = 0; i < 3; i++) {					
+					interpolate_rhw = interpolate_rhw + rhw[i] * bc_screen[i];
+					uv = uv + uvs[i] * rhw[i] * bc_screen[i];
 				}
+				uv = uv / interpolate_rhw;
+
 				TGAColor color = img.get(uv.x, uv.y);
 				canvas.SetPixel(color, x, y);
 			}
@@ -225,9 +234,9 @@ void Rasterize(V2F* vertexes, float* zbuffer, Shader& shader, Canvas& canvas, TG
 
 V2F TextureShader::vert(A2V v) {
 	V2F v2f;
-	v2f.position = projection * view * model * Vec4f(v.position, 1);
+	v2f.position = projection * view * model * Vec4f(v.position, 1.f);
 	v2f.uv = v.uv;
-	v2f.normal = Vec3f(model.invert_transpose() * Vec4f(v.normal, 1));
+	v2f.normal = Vec3f(model.invert_transpose() * Vec4f(v.normal, 1.f));
 	return v2f;
 }
 
