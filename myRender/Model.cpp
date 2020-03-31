@@ -55,7 +55,7 @@ Model::Model(const char* filename) : verts_(), faces_() {
 
 Vec2f Model::uv(int iface, int nvert) {
 	int idx = faces_[iface][nvert][1];
-	return Vec2f(uvs_[idx].x * diffuseMap.get_width() + .5f, uvs_[idx].y  * diffuseMap.get_height() + .5f);
+	return Vec2f(uvs_[idx].x * diffuseMap.get_width(), uvs_[idx].y  * diffuseMap.get_height());
 }
 
 Vec3f Model::norm(int iface, int nvert) {

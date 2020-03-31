@@ -18,7 +18,7 @@ public:
 		pixelData = new Uint32[width * height];
 	}
 
-	bool SetPixel(const TGAColor& color, int x, int y) {
+	bool SetPixel(const Color& color, int x, int y) {
 		if (!pixelData || x < 0 || y < 0 || x >= width || y >= height) {
 			return false;
 		}

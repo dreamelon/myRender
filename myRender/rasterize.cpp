@@ -10,7 +10,7 @@ using std::min;
 using std::max;
 using std::equal;
 
-void DrawLine(int x0, int y0, int x1, int y1, Canvas& canvas, const TGAColor& color) {
+void DrawLine(int x0, int y0, int x1, int y1, Canvas& canvas, const Color& color) {
 	//for (float t = 0.; t < 1.; t += .01) {
 	//	int x = x0 + (x1 - x0) * t;
 	//	int y = y0 + (y1 - y0) * t;
@@ -219,13 +219,15 @@ void Rasterize(V2F* vertexes, float* zbuffer, Shader& shader, Canvas& canvas, TG
 				Vec2f uv;
 				//Vec3f normal;
 				float  interpolate_rhw = 0.f;
-				for (int i = 0; i < 3; i++) {					
+				for (int i = 0; i < 3; i++) {		
+					//透视校正插值
 					interpolate_rhw = interpolate_rhw + rhw[i] * bc_screen[i];
 					uv = uv + uvs[i] * rhw[i] * bc_screen[i];
+					//uv = uv + uvs[i] * bc_screen[i];
 				}
 				uv = uv / interpolate_rhw;
 
-				TGAColor color = img.get(uv.x, uv.y);
+				Color color = img.get(uv.x, uv.y);
 				canvas.SetPixel(color, x, y);
 			}
 		}
@@ -240,6 +242,6 @@ V2F TextureShader::vert(A2V v) {
 	return v2f;
 }
 
-TGAColor TextureShader::frag(V2F o) {
-	return TGAColor();
+Color TextureShader::frag(V2F o) {
+	return Color();
 }

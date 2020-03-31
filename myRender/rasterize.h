@@ -2,14 +2,14 @@
 
 #include "canvas.h"
 #include "geometry.h"
-
+#include "Color.h"
 
 
 class Shader {
 public:
 	~Shader() {}
 	virtual	V2F vert(A2V v) = 0;
-	virtual TGAColor frag(V2F o) = 0;
+	virtual Color frag(V2F o) = 0;
 };
 
 class TextureShader : public Shader {
@@ -18,10 +18,10 @@ public:
 	Matrix view;
 	Matrix projection;
 	virtual	V2F vert(A2V v);
-	virtual TGAColor frag(V2F o);
+	virtual Color frag(V2F o);
 };
 
-void DrawLine(int x0, int y0, int x1, int y1, Canvas& canvas, const TGAColor& color);
+void DrawLine(int x0, int y0, int x1, int y1, Canvas& canvas, const Color& color);
 
 void DrawTriangle(Vec3f t0, Vec3f t1, Vec3f t2, Vec2i* uv, float* zbuffer, Canvas& canvas, TGAImage& img);
 

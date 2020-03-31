@@ -230,7 +230,7 @@ int main(int argc, char* argv[])
 		shader.view = camera.LookAt();
 
 		// canvas setpixel draw sth
-		TGAColor color(255, 255, 255, 255);
+		Color color(255, 255, 255, 255);
 
 		Vec3f pos[6] = {Vec3f(-0.5f, -0.5f, -0.5f),   Vec3f(0.5f, 0.5f, -0.5f),  
 						Vec3f(0.5f, -0.5f, -0.5f),	  Vec3f(0.5f, 0.5f, -0.5f),
@@ -255,7 +255,7 @@ int main(int argc, char* argv[])
 
 		//DrawTriangle(t0, *canvas, color);
 		for (int i = 0; i < model->nfaces(); i++) {
-			color = TGAColor(255, 255, 255, 255);
+			color = Color(255, 255, 255, 255);
 			std::vector<Vec3i> face = model->face(i);
 			A2V	 a2v[3];
 			V2F  v2f[3];
