@@ -10,6 +10,75 @@ using std::min;
 using std::max;
 using std::equal;
 
+
+const int LINE_INSIDE = 0; // 0000
+const int LINE_LEFT = 1;   // 0001
+const int LINE_RIGHT = 2;  // 0010
+const int LINE_BOTTOM = 4; // 0100
+const int LINE_TOP = 8;    // 1000
+
+//cohen-sutherland算法，位编码标记裁剪区域
+int Encode(Vec2f pos, Vec2f min, Vec2f max) {
+	int code = LINE_INSIDE;
+
+	if (pos.x < min.x)
+		code |= LINE_LEFT;
+	else if (pos.x > max.x) 
+		code |= LINE_RIGHT;
+	if (pos.y < min.y) 
+		code |= LINE_BOTTOM;
+	else if (pos.y > max.y)
+		code |= LINE_TOP;
+
+	return code;
+}
+
+bool CohenSutherlandLineClip(Vec2f start, Vec2f end, Vec2f min, Vec2f max) {
+	int start_code = Encode(start, min, max);
+	int end_code = Encode(end, min, max);
+
+	bool accept = true;
+	while (true) {
+		if (!(start_code | end_code))
+			break;
+		else if (start_code & end_code) {
+			accept = false;
+			break;
+		}
+		else {
+			float x, y;
+			int outCode = start_code ? start_code : end_code;
+			if (outCode & LINE_LEFT) {
+				y = (end.y - start.y) / (end.x - start.x) * (min.x - start.x) + start.y;
+				x = min.x;
+			}
+			else if (outCode & LINE_BOTTOM) {
+				y = min.y;
+				x = (end.x - start.x) / (end.y - start.y) * (min.y - start.y) + start.x;
+			}
+			else if (outCode & LINE_RIGHT) {
+				x = max.x;
+				y = (end.y - start.y) / (end.x - start.x) * (max.x - start.x) + start.y;
+			}
+			else if (outCode & LINE_TOP) {
+				y = max.y;
+				x = (end.x - start.x) / (end.y - start.y) * (max.y - start.y) + start.x;
+			}
+
+			if (outCode == start_code) {
+				start = Vec2f(x, y);
+				start_code = Encode(start, min, max);
+			}
+			else {
+				end = Vec2f(x, y);
+				end_code = Encode(end, min, max);
+			}
+		}
+	}
+
+	return accept;
+}
+
 void DrawLine(int x0, int y0, int x1, int y1, Canvas& canvas, const Color& color) {
 	//for (float t = 0.; t < 1.; t += .01) {
 	//	int x = x0 + (x1 - x0) * t;
@@ -17,6 +86,11 @@ void DrawLine(int x0, int y0, int x1, int y1, Canvas& canvas, const Color& color
 	//	canvas.SetPixel(color, x, y);
 	//}
 	//dx > dy?
+	Vec2f start(x0, y0);
+	Vec2f end(x1, y1);
+	if (!CohenSutherlandLineClip(start, end, Vec2f(0.f, 0.f), Vec2f(canvas.width, canvas.height))){
+		return;
+	}
 	bool isSwapXY = false;
 	if (abs(x0 - x1) < abs(y0 - y1)) {
 		swap(x0, y0);
@@ -182,6 +256,7 @@ void Rasterize(V2F* vertexes, float* zbuffer, Shader& shader, Canvas& canvas, TG
 		rhw[i] = vertexes[i].position.w;
 	}
 
+	//用包围盒做屏幕空间裁剪
 	Vec2f bboxmin(std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
 	Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
 	Vec2f clamp = Vec2f(canvas.width - 1, canvas.height - 1);

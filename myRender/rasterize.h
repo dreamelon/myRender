@@ -4,7 +4,6 @@
 #include "geometry.h"
 #include "Color.h"
 
-
 class Shader {
 public:
 	~Shader() {}
@@ -56,4 +55,6 @@ bool IsPointInTriangle(Vec3f* triangle, Vec3i p);
 
 void Rasterize(V2F* vertexes, float* zbuffer, Shader& shader, Canvas& canvas, TGAImage& img);
 
+int Encode(Vec2f pos, Vec2f min, Vec2f max);
 
+bool CohenSutherlandLineClip(Vec2f start, Vec2f end, Vec2f min, Vec2f max);

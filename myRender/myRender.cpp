@@ -30,7 +30,6 @@ width    0    0   0			 1	0	0	1
 0        0    1   0			 0	0	1	0
 0        0	  0   1			 0	0	0	1
 */
-
 Vec4f ViewPort(Vec4f v) {
 	Matrix m = Matrix::identity();
 	m[0][3] = WINDOW_WIDTH / 2.f;
@@ -47,21 +46,7 @@ Vec4f ViewPort(Vec4f v) {
 	return temp;
 }
 
-
-
-mat<4, 1, float> v2m(Vec3f v) {
-	mat<4,1,float> m;
-	m[0][0] = v.x;
-	m[1][0] = v.y;
-	m[2][0] = v.z;
-	m[3][0] = 1.f;
-	return m;
-}
-
-Vec3f m2v(mat<4, 1, float> m) {
-	return Vec3f((m[0][0] / m[3][0]), (m[1][0] / m[3][0]), (m[2][0] / m[3][0]));
-}
-
+//透视除法
 Vec4f PerspectiveDivision(Vec4f m) {
 	Vec4f v;
 	float rhw = 1 / m[3];
@@ -72,9 +57,27 @@ Vec4f PerspectiveDivision(Vec4f m) {
 	return v;
 }
 
+/*
+ * for facing determination, see subsection 3.5.1 of
+ * https://www.khronos.org/registry/OpenGL/specs/es/2.0/es_full_spec_2.0.pdf
+ *
+ * this is the same as (but more efficient than)
+ *     vec3_t ab = vec3_sub(b, a);
+ *     vec3_t ac = vec3_sub(c, a);
+ *     return vec3_cross(ab, ac).z <= 0;
+ */
+static int is_back_facing(Vec3f ndc_coords[3]) {
+	Vec3f  a = ndc_coords[0];
+	Vec3f  b = ndc_coords[1];
+	Vec3f  c = ndc_coords[2];
+	float signed_area = 0;
+	signed_area += a.x * b.y - a.y * b.x;
+	signed_area += b.x * c.y - b.y * c.x;
+	signed_area += c.x * a.y - c.y * a.x;
+	return signed_area <= 0;
+}
 
 /* misc platform functions */
-
 static double get_native_time(void) {
 	static double period = -1;
 	LARGE_INTEGER counter;
@@ -167,6 +170,8 @@ int main(int argc, char* argv[])
 	int nFrames = 0;
 	int xFrames = 0;
 
+	bool isBackfaceCull = true;
+
 	Uint64 start, now;
 	motion_t motion;
 	while (quit) {
@@ -230,32 +235,27 @@ int main(int argc, char* argv[])
 		shader.view = camera.LookAt();
 
 		// canvas setpixel draw sth
-		Color color(255, 255, 255, 255);
+		Color color(200, 100, 255, 255);
+		DrawLine(-200, -100, 200, 200, *canvas, color);
+		//Vec3f pos[6] = {Vec3f(-0.5f, -0.5f, -0.5f),   Vec3f(0.5f, 0.5f, -0.5f),  
+		//				Vec3f(0.5f, -0.5f, -0.5f),	  Vec3f(0.5f, 0.5f, -0.5f),
+		//				Vec3f(-0.5f, -0.5f, -0.5f),   Vec3f(-0.5f, 0.5f, -0.5f)
+		//};
+		//
 
-		Vec3f pos[6] = {Vec3f(-0.5f, -0.5f, -0.5f),   Vec3f(0.5f, 0.5f, -0.5f),  
-						Vec3f(0.5f, -0.5f, -0.5f),	  Vec3f(0.5f, 0.5f, -0.5f),
-						Vec3f(-0.5f, -0.5f, -0.5f),   Vec3f(-0.5f, 0.5f, -0.5f)
-		};
+		//Vec3f norm[6] = { Vec3f(0.0f, 0.0f, -1.0f),   Vec3f(0.0f, 0.0f, -1.0f),
+		//				Vec3f(0.0f, 0.0f, -1.0f),	  Vec3f(0.0f, 0.0f, -1.0f),
+		//				Vec3f(0.0f, 0.0f, -1.0f),   Vec3f(0.0f, 0.0f, -1.0f)
+		//};
+
+		//Vec2f texcoords[6] = { Vec2f(0.0f, 0.0f),   Vec2f(1.0f, 0.0f),
+		//				Vec2f(1.0f, 1.0f),	  Vec2f(1.0f, 1.0f),
+		//				Vec2f(0.0f, 1.0f),   Vec2f(0.0f, 0.0f)
+		//};
 		
-
-		Vec3f norm[6] = { Vec3f(0.0f, 0.0f, -1.0f),   Vec3f(0.0f, 0.0f, -1.0f),
-						Vec3f(0.0f, 0.0f, -1.0f),	  Vec3f(0.0f, 0.0f, -1.0f),
-						Vec3f(0.0f, 0.0f, -1.0f),   Vec3f(0.0f, 0.0f, -1.0f)
-		};
-
-		Vec2f texcoords[6] = { Vec2f(0.0f, 0.0f),   Vec2f(1.0f, 0.0f),
-						Vec2f(1.0f, 1.0f),	  Vec2f(1.0f, 1.0f),
-						Vec2f(0.0f, 1.0f),   Vec2f(0.0f, 0.0f)
-		};
-		//Vertex v[6];
-		//for (int i = 0; i < 6; i++) {
-		//	v[i].position = 
-		//}
 		
-
 		//DrawTriangle(t0, *canvas, color);
 		for (int i = 0; i < model->nfaces(); i++) {
-			color = Color(255, 255, 255, 255);
 			std::vector<Vec3i> face = model->face(i);
 			A2V	 a2v[3];
 			V2F  v2f[3];
@@ -264,13 +264,22 @@ int main(int argc, char* argv[])
 				a2v[j].uv = model->uv(i, j);
 				a2v[j].normal = model->norm(i, j);
 				//vert[j].position = projection * view * Vec4f(vert[j].position, 1.f);
-
+				//顶点着色器
 				v2f[j] = shader.vert(a2v[j]);
 				v2f[j].position = ViewPort(PerspectiveDivision(v2f[j].position));
-				v2f[j].position.y = WINDOW_HEIGHT - v2f[j].position.y;
+				//v2f[j].position.y = WINDOW_HEIGHT - v2f[j].position.y;
 			}	
-			Rasterize(v2f, zbuffer, shader, *canvas, img);
-			//DrawTriangle(screencoords[0], screencoords[1], screencoords[2], uvs, zbuffer, *canvas, img);			
+			//背面剔除
+			Vec3f ndcCoords[3]{v2f[0].position, v2f[1].position, v2f[2].position};
+			int backface = is_back_facing(ndcCoords);
+			if (backface && isBackfaceCull) continue;
+
+			//翻转y轴，满足屏幕坐标系
+			for (int j = 0; j < 3; j++) {
+				v2f[j].position.y = WINDOW_HEIGHT - v2f[j].position.y;
+			}
+			//光栅化
+			Rasterize(v2f, zbuffer, shader, *canvas, img);		
 		}
 		//SDL_SetRenderDrawColor(render, 0xFF, 0xFF, 0xFF, 0xFF);
 		SDL_RenderClear(render);
@@ -318,5 +327,6 @@ int main(int argc, char* argv[])
 
 	return 0;
 }
+
 
 
