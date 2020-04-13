@@ -250,6 +250,16 @@ struct V2F {
 	Vec3f worldPos;
 	Vec3f normal;
 	Vec2f uv;
+
+	static V2F lerp(const V2F& lhs, const V2F& rhs, float factor) {
+		V2F result;
+		result.position = lhs.position * (1.f - factor) + rhs.position * factor;
+		result.normal = lhs.normal * (1.f - factor) + rhs.normal * factor;
+		result.uv = lhs.uv * (1.f - factor) + rhs.uv * factor;
+		result.worldPos = lhs.worldPos * (1.f - factor) + rhs.worldPos * factor;
+
+		return result;
+	}
 };
 
 

@@ -57,6 +57,81 @@ Vec4f PerspectiveDivision(Vec4f m) {
 	return v;
 }
 
+//裁剪面
+const std::vector<Vec4f> viewPlane= {
+	//W
+	Vec4f(0,0,0,1),
+	//Near
+	Vec4f(0,0,1,1),
+	//far
+	Vec4f(0,0,-1,1),
+	//left
+	Vec4f(1,0,0,1),
+	//top
+	Vec4f(0,1,0,1),
+	//right
+	Vec4f(-1,0,0,1),
+	//bottom 
+	Vec4f(0,-1,0,1)
+};
+
+
+bool isInCVV(std::vector<V2F> triangle) {
+
+	for (auto& vert : triangle) {
+		Vec4f v = vert.position;
+		if (v.z < -v.w)
+			return false;
+	}
+	return true;
+}
+
+bool isInCVV(Vec4f v) {
+	return v.z >= -v.w;
+}
+
+
+V2F Intersect(V2F prev, V2F cur, Vec4f plane) {
+	//d = x + y 各直线之间的距离，d为x+y的结果
+	float d_prev = prev.position * plane;
+	float d_cur = cur.position * plane;
+
+	float ratio = d_prev / (d_prev - d_cur);
+	return V2F::lerp(prev, cur, ratio);
+ }
+//cvv裁剪
+std::vector<V2F> Clip_Triangle(V2F* input) {
+	std::vector<V2F> output{ input[0], input[1], input[2] };
+	if (isInCVV(output)) {
+		return output;
+	}
+	//只裁剪Znear,若裁剪所有面遍历裁剪面数组即可。
+	std::vector<V2F> in(output);
+	output.clear();
+	for (int i = 0; i < in.size(); i++) {
+		Vec4f curPos = in[i].position;
+		int prev = (i - 1 + in.size()) % in.size();
+		Vec4f prevPos = in[prev].position;
+		bool curCode = isInCVV(curPos);
+		bool prevCode = isInCVV(prevPos);
+		if (curCode) {
+			if (!prevCode) {
+				V2F intersection = Intersect(in[prev], in[i], Vec4f(0, 0, 1, 1));
+				output.push_back(intersection);
+			}
+			output.push_back(in[i]);
+		}
+		else if (prevCode) {
+			V2F intersection = Intersect(in[prev], in[i], Vec4f(0, 0, 1, 1));
+			output.push_back(intersection);
+		}
+	}
+
+	std::cout << output.size() << "\n";
+
+	return output;
+}
+
 /*
  * for facing determination, see subsection 3.5.1 of
  * https://www.khronos.org/registry/OpenGL/specs/es/2.0/es_full_spec_2.0.pdf
@@ -104,7 +179,7 @@ float c_lastX;
 float c_lastY;
 
 
-Camera camera(Vec3f(0.f, 0.f, 5.f));
+Camera camera(Vec3f(0.f, 0.f, 0.7f));
 
 int main(int argc, char* argv[])
 {
@@ -258,28 +333,47 @@ int main(int argc, char* argv[])
 		for (int i = 0; i < model->nfaces(); i++) {
 			std::vector<Vec3i> face = model->face(i);
 			A2V	 a2v[3];
-			V2F  v2f[3];
+			V2F  vert[3];
 			for (int j = 0; j < 3; j++) {
 				a2v[j].position = model->vert(face[j][0]);
 				a2v[j].uv = model->uv(i, j);
 				a2v[j].normal = model->norm(i, j);
 				//vert[j].position = projection * view * Vec4f(vert[j].position, 1.f);
 				//顶点着色器
-				v2f[j] = shader.vert(a2v[j]);
-				v2f[j].position = ViewPort(PerspectiveDivision(v2f[j].position));
-				//v2f[j].position.y = WINDOW_HEIGHT - v2f[j].position.y;
+				vert[j] = shader.vert(a2v[j]);
 			}	
-			//背面剔除
-			Vec3f ndcCoords[3]{v2f[0].position, v2f[1].position, v2f[2].position};
-			int backface = is_back_facing(ndcCoords);
-			if (backface && isBackfaceCull) continue;
 
-			//翻转y轴，满足屏幕坐标系
-			for (int j = 0; j < 3; j++) {
-				v2f[j].position.y = WINDOW_HEIGHT - v2f[j].position.y;
+			//cvv裁剪
+			std::vector<V2F> clipV2F = Clip_Triangle(vert);
+
+			//透视除法以及转换到屏幕空间坐标系ndc
+			for (auto& vert : clipV2F) {
+				vert.position = ViewPort(PerspectiveDivision(vert.position));
 			}
-			//光栅化
-			Rasterize(v2f, zbuffer, shader, *canvas, img);		
+
+			//if (clipV2F.size() < 3) {
+			//	std::cout << "wrong" << "\n";
+			//}
+
+			int n = clipV2F.size() - 2;
+			//triangle assembly 
+			for (int k = 0; k < n; k++) {
+				V2F v2f[3]{ clipV2F[0], clipV2F[k + 1], clipV2F[k + 2] };
+
+				//V2F v2f[3]{ vert[0], vert[1], vert[2] };
+
+				//背面剔除
+				Vec3f ndcCoords[3]{ v2f[0].position, v2f[1].position, v2f[2].position };
+				int backface = is_back_facing(ndcCoords);
+				if (backface && isBackfaceCull) continue;
+
+				//翻转y轴，满足屏幕坐标系
+				for (int j = 0; j < 3; j++) {
+					v2f[j].position.y = WINDOW_HEIGHT - v2f[j].position.y;
+				}
+				//光栅化
+				Rasterize(v2f, zbuffer, shader, *canvas, img);
+			}
 		}
 		//SDL_SetRenderDrawColor(render, 0xFF, 0xFF, 0xFF, 0xFF);
 		SDL_RenderClear(render);

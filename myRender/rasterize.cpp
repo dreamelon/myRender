@@ -279,7 +279,7 @@ void Rasterize(V2F* vertexes, float* zbuffer, Shader& shader, Canvas& canvas, TG
 
 			Vec3f bc_screen = BaryCentric(triangle, Vec2i(x, y));
 
-			if (bc_screen.x < EPSILON || bc_screen.y < EPSILON || bc_screen.z < EPSILON) continue;
+			if (bc_screen.x < -EPSILON || bc_screen.y < -EPSILON || bc_screen.z < -EPSILON) continue;
 			z = 0.f;
 			//z' = 2nf / (z * (f-n)) + (n+f) / (f-n)  
 			//z是相机空间坐标，z'与1/z成正比, xy也要做透视除法，与1/z成正比
