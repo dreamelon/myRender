@@ -127,8 +127,6 @@ std::vector<V2F> Clip_Triangle(V2F* input) {
 		}
 	}
 
-	std::cout << output.size() << "\n";
-
 	return output;
 }
 
@@ -351,16 +349,10 @@ int main(int argc, char* argv[])
 				vert.position = ViewPort(PerspectiveDivision(vert.position));
 			}
 
-			//if (clipV2F.size() < 3) {
-			//	std::cout << "wrong" << "\n";
-			//}
-
 			int n = clipV2F.size() - 2;
 			//triangle assembly 
 			for (int k = 0; k < n; k++) {
 				V2F v2f[3]{ clipV2F[0], clipV2F[k + 1], clipV2F[k + 2] };
-
-				//V2F v2f[3]{ vert[0], vert[1], vert[2] };
 
 				//±³ÃæÌÞ³ý
 				Vec3f ndcCoords[3]{ v2f[0].position, v2f[1].position, v2f[2].position };
